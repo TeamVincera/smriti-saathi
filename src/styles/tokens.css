@@ -1,0 +1,118 @@
+:root {
+  /* Northeast Indian Handloom Textile Palette */
+  --primary: #9e2224; /* Rongali Madder Red (Assamese Gamosa / Mekhela Chador) */
+  --primary-focus: #b82a2d;
+  --primary-hover: #861a1c;
+  --primary-on-dark: #ff8587;
+
+  /* Traditional Accent Colors */
+  --muga-gold: #c98e34; /* Assam Muga Wild Silk Golden Thread */
+  --muga-gold-light: #f5e4be;
+  --muga-gold-glow: rgba(201, 142, 52, 0.35);
+  --indigo-deep: #162436; /* Majuli Natural Hand-Dyed Indigo */
+  --indigo-mid: #253950;
+  --tea-green: #235c3e; /* Assam Tea Garden Green */
+  --tea-green-soft: #eaf4ed;
+  --terracotta: #b85433; /* Traditional Red Clay Pottery */
+
+  /* Neutral Handloom & Fabric Tones */
+  --ink: #1f1b18; /* Deep Warm Charcoal */
+  --body-c: #26211c;
+  --body-on-dark: #fbf8f2;
+  --body-muted-dark: #d2c8bc;
+  --ink-muted-80: #423b34;
+  --ink-muted-48: #786e64;
+
+  /* Fabric Backgrounds (Light & Textured) */
+  --canvas: #fbf8f2; /* Raw Cotton / Eri Silk Handloom Canvas */
+  --canvas-alt: #f7f2e7;
+  --parchment: #f4ece0; /* Muga Silk Soft Gold Hue */
+  --pearl: #fffdf9; /* Ivory Woven Silk */
+  --divider-soft: rgba(201, 142, 52, 0.22);
+  --hairline: rgba(158, 34, 36, 0.16);
+  --hairline-gold: rgba(201, 142, 52, 0.35);
+
+  /* Dark Indigo Fabric Surfaces */
+  --tile-1: #182535; /* Indigo Handloom Dark Card */
+  --tile-2: #213247;
+  --tile-3: #141f2c;
+  --black: #111822;
+
+  --chip-translucent: rgba(244, 236, 224, 0.85);
+  --on-primary: #fffdf9;
+
+  --success: #235c3e;
+  --success-soft: #edf6f0;
+  --warn: #9e6406;
+  --warn-soft: #fcf4e3;
+
+  /* Typography */
+  --font-display: "Outfit", "Rozha One", system-ui, -apple-system, sans-serif;
+  --font-heading-folk: "Rozha One", "Outfit", serif;
+  --font-text: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+
+  /* Radii & Geometry (Handcrafted Soft Curves) */
+  --r-none: 0px;
+  --r-xs: 6px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-xl: 28px;
+  --r-pill: 9999px;
+
+  /* Spacing */
+  --s-xxs: 4px;
+  --s-xs: 8px;
+  --s-sm: 12px;
+  --s-md: 18px;
+  --s-lg: 26px;
+  --s-xl: 34px;
+  --s-xxl: 50px;
+  --s-section: clamp(40px, 7vw, 84px);
+
+  /* Shadows (Warm & Textile-Embossed) */
+  --shadow-product: 0 10px 30px -4px rgba(60, 40, 20, 0.12), 0 4px 12px -2px rgba(60, 40, 20, 0.08);
+  --shadow-card: 0 4px 20px rgba(70, 45, 20, 0.07);
+  --shadow-glow-red: 0 6px 20px rgba(158, 34, 36, 0.28);
+  --shadow-glow-gold: 0 6px 20px rgba(201, 142, 52, 0.3);
+  --hairline-ring: 1.5px solid var(--hairline);
+
+  /* Font Sizes */
+  --fs-hero: clamp(34px, 5.4vw, 56px);
+  --fs-display-lg: clamp(28px, 4.2vw, 40px);
+  --fs-display-md: clamp(24px, 3.4vw, 34px);
+  --fs-title: clamp(21px, 2.6vw, 28px);
+  --fs-tagline: clamp(19px, 2.2vw, 23px);
+  --fs-body-lg: clamp(19px, 2vw, 22px);
+  --fs-body: clamp(18px, 1.7vw, 20px);
+  --fs-caption: clamp(14px, 1.4vw, 16px);
+
+  /* Handloom Fabric Weave Textures (pure CSS threads, offline-safe) */
+  --tex-weave-light:
+    linear-gradient(0deg, rgba(160, 115, 75, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(160, 115, 75, 0.05) 1px, transparent 1px),
+    radial-gradient(rgba(180, 130, 70, 0.05) 0.8px, transparent 1px);
+  --tex-size-weave: 5px 5px, 5px 5px, 15px 15px;
+  --tex-weave-red:
+    linear-gradient(0deg, rgba(255, 244, 224, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56, 8, 9, 0.12) 1px, transparent 1px);
+  --tex-size-weave-btn: 4px 4px;
+  --tex-sheen-red: linear-gradient(135deg, rgba(255, 235, 200, 0.16) 0%, rgba(255, 255, 255, 0) 42%, rgba(56, 8, 9, 0.14) 100%);
+
+  --nav-h: 58px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+@media (min-width: 1441px) {
+  :root {
+    --fs-hero: 64px;
+    --fs-display-lg: 48px;
+    --fs-display-md: 38px;
+    --fs-title: 30px;
+    --fs-tagline: 25px;
+    --fs-body-lg: 23px;
+    --fs-body: 21px;
+    --fs-caption: 17px;
+  }
+}

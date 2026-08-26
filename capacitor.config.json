@@ -1,0 +1,12 @@
+{
+  "appId": "com.smriti.sathi",
+  "appName": "Smriti Sathi",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#f5f5f7"
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}

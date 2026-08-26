@@ -1,0 +1,1303 @@
+@import "./tokens.css";
+
+* {
+  box-sizing: border-box;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--fs-body);
+  line-height: 1.48;
+  letter-spacing: -0.15px;
+  color: var(--body-c);
+  background-color: var(--canvas);
+  /* Authentic Northeast Indian Handloom Eri/Cotton Weave Texture */
+  background-image: 
+    linear-gradient(90deg, rgba(160, 115, 75, 0.04) 1px, transparent 1px),
+    linear-gradient(0deg, rgba(160, 115, 75, 0.04) 1px, transparent 1px),
+    radial-gradient(rgba(180, 130, 70, 0.065) 1px, transparent 1px);
+  background-size: 8px 8px, 8px 8px, 24px 24px;
+  background-position: 0 0, 0 0, 12px 12px;
+  overscroll-behavior: none;
+}
+
+h1, h2, h3 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: var(--ink);
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: inherit;
+  padding: 0;
+}
+
+input, select {
+  font-family: inherit;
+  font-size: var(--fs-body);
+  color: var(--ink);
+}
+
+:focus-visible {
+  outline: 2.5px solid var(--primary-focus);
+  outline-offset: 3px;
+  border-radius: var(--r-xs);
+}
+
+.app {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--canvas);
+  background-image: inherit;
+  background-size: inherit;
+}
+
+/* -------------------------------------------------------------
+   TRADITIONAL TEXTILE GLOBAL NAVIGATION
+   ------------------------------------------------------------- */
+.nav-global {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: linear-gradient(180deg, #14202e 0%, #1a2a3c 100%);
+  color: #fffdf9;
+  height: calc(var(--nav-h) + var(--safe-top));
+  padding: var(--safe-top) var(--s-lg) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-md);
+  box-shadow: 0 4px 18px rgba(20, 32, 46, 0.25);
+  /* Traditional Gamosa / Mekhela Chador Red & Gold Woven Border Trim */
+  border-bottom: 4px solid var(--primary);
+  border-image: repeating-linear-gradient(
+    45deg,
+    var(--primary),
+    var(--primary) 12px,
+    var(--muga-gold) 12px,
+    var(--muga-gold) 18px,
+    var(--pearl) 18px,
+    var(--pearl) 24px
+  ) 4;
+}
+
+.nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fffdf9;
+  text-decoration: none;
+  transition: opacity 0.15s ease;
+}
+.nav-brand:hover {
+  opacity: 0.92;
+}
+
+.nav-brand svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(201, 142, 52, 0.45));
+}
+
+.nav-brand span {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-title);
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #ffffff 30%, #f7e6c4 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.nav-actions {
+  display: flex;
+  gap: var(--s-xs);
+  align-items: center;
+}
+
+/* -------------------------------------------------------------
+   PAGE LAYOUT & TYPOGRAPHY
+   ------------------------------------------------------------- */
+.page {
+  flex: 1;
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: var(--s-xl) var(--s-lg) calc(var(--s-xxl) + var(--safe-bottom) + 84px);
+}
+
+.page-full {
+  max-width: none;
+  padding: 0 0 calc(var(--s-xxl) + var(--safe-bottom) + 84px);
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: var(--fs-hero);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.display-lg {
+  font-size: var(--fs-display-lg);
+  line-height: 1.14;
+  letter-spacing: -0.015em;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.display-md {
+  font-size: var(--fs-display-md);
+  line-height: 1.22;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: var(--fs-title);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.lead {
+  font-size: var(--fs-body-lg);
+  line-height: 1.44;
+  font-weight: 400;
+  color: var(--ink-muted-80);
+}
+
+.muted {
+  color: var(--ink-muted-48);
+}
+
+.caption {
+  font-size: var(--fs-caption);
+  color: var(--ink-muted-48);
+}
+
+/* -------------------------------------------------------------
+   HANDLOOM TEXTILE BUTTONS & INTERACTION
+   ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 56px;
+  padding: 12px 28px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
+  letter-spacing: -0.15px;
+  transition: transform 0.1s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  position: relative;
+}
+
+.btn:active {
+  transform: scale(0.96);
+}
+
+/* Primary Button: Woven Rongali Red Ribbon with Golden Thread Border */
+.btn-primary {
+  background-color: #a62426;
+  background-image: var(--tex-sheen-red), var(--tex-weave-red);
+  background-size: auto, var(--tex-size-weave-btn);
+  color: var(--on-primary);
+  border: 1.5px solid #d49c3d;
+  box-shadow: 0 4px 16px rgba(158, 34, 36, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -6px 12px rgba(56, 8, 9, 0.18);
+}
+
+.btn-primary:hover {
+  background-color: #b82a2d;
+  box-shadow: 0 6px 20px rgba(158, 34, 36, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.3), inset 0 -6px 12px rgba(56, 8, 9, 0.2);
+}
+
+/* Secondary Button: Raw Silk Textured Button with Red Cross-Stitch */
+.btn-secondary {
+  background-color: var(--pearl);
+  background-image: var(--tex-weave-light);
+  background-size: var(--tex-size-weave);
+  color: var(--primary);
+  border: 2px solid var(--primary);
+  box-shadow: 0 3px 10px rgba(158, 34, 36, 0.08), inset 0 0 0 1px rgba(201, 142, 52, 0.2);
+}
+
+.btn-secondary:hover {
+  background-color: #fdf3f3;
+}
+
+/* Dark Button: Indigo Handloom Texture */
+.btn-dark {
+  background: linear-gradient(135deg, #182535 0%, #131d2a 100%);
+  color: var(--body-on-dark);
+  border: 1.5px solid var(--muga-gold);
+  border-radius: var(--r-md);
+  font-size: var(--fs-caption);
+  min-height: 48px;
+  padding: 8px 20px;
+  box-shadow: 0 4px 12px rgba(20, 32, 46, 0.25);
+}
+
+/* Pearl Button: Ivory Woven Silk with Handcrafted Stitching */
+.btn-pearl {
+  background: var(--pearl);
+  color: var(--ink-muted-80);
+  border-radius: var(--r-md);
+  border: 1.5px dashed var(--hairline-gold);
+  box-shadow: 0 2px 8px rgba(70, 45, 20, 0.06);
+  font-size: var(--fs-caption);
+  min-height: 48px;
+}
+
+.btn-pearl:hover {
+  background: #f7f0e3;
+  border-color: var(--muga-gold);
+  color: var(--ink);
+}
+
+.btn-big {
+  min-height: 72px;
+  font-size: clamp(21px, 2.4vw, 26px);
+  padding: 14px 40px;
+  border-width: 2px;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn[disabled] {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.icon-btn {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  border-radius: var(--r-pill);
+  background: var(--pearl);
+  border: 1.5px solid var(--hairline-gold);
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(70, 45, 20, 0.06);
+  transition: transform 0.1s ease, border-color 0.15s;
+}
+
+.icon-btn:active {
+  transform: scale(0.94);
+}
+
+.icon-btn.on-dark {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(201, 142, 52, 0.4);
+  color: #fff;
+}
+
+.icon-btn svg {
+  width: 26px;
+  height: 26px;
+}
+
+/* -------------------------------------------------------------
+   HANDLOOM FABRIC CARDS & PANELS
+   ------------------------------------------------------------- */
+.card {
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.24);
+  border-radius: var(--r-lg);
+  padding: var(--s-lg);
+  box-shadow: var(--shadow-card);
+  position: relative;
+  /* Subtle woven fabric texture */
+  background-image: linear-gradient(0deg, rgba(160, 115, 75, 0.02) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(160, 115, 75, 0.02) 1px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+.card-parchment {
+  background: var(--parchment);
+  border-color: rgba(201, 142, 52, 0.3);
+  box-shadow: 0 4px 16px rgba(70, 45, 20, 0.06);
+}
+
+/* Dark Card: Indigo-Dyed Handloom Canvas */
+.card-dark {
+  background: linear-gradient(145deg, #182535 0%, #131e2b 100%);
+  color: var(--body-on-dark);
+  border: 1.5px solid rgba(201, 142, 52, 0.35);
+  box-shadow: 0 8px 24px rgba(15, 24, 36, 0.35);
+}
+
+.card-dark .lead, .card-dark .muted {
+  color: var(--body-muted-dark);
+}
+
+.card-dark .title, .card-dark .display-lg, .card-dark .display-md {
+  color: #fffdf9;
+}
+
+.tile-section {
+  width: 100%;
+  padding: var(--s-section) var(--s-lg);
+}
+
+.tile-white {
+  background: var(--canvas);
+  color: var(--ink);
+}
+
+.tile-parchment {
+  background: var(--parchment);
+  color: var(--ink);
+  border-top: 1px solid var(--hairline-gold);
+  border-bottom: 1px solid var(--hairline-gold);
+}
+
+.tile-dark {
+  background: var(--tile-1);
+  color: #fff;
+}
+
+.tile-inner {
+  max-width: 1180px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-md);
+}
+
+.grid {
+  display: grid;
+  gap: var(--s-md);
+  grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr));
+}
+
+.grid-games {
+  grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr));
+}
+
+/* -------------------------------------------------------------
+   GAME TILES & HANDLOOM MOTIF CARDS
+   ------------------------------------------------------------- */
+.game-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-xs);
+  background: var(--pearl);
+  border-radius: var(--r-lg);
+  border: 1.5px solid rgba(201, 142, 52, 0.25);
+  padding: var(--s-xl) var(--s-lg);
+  min-height: 240px;
+  text-align: center;
+  box-shadow: var(--shadow-card);
+  transition: transform 0.12s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.game-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), var(--muga-gold), var(--primary));
+  opacity: 0.85;
+}
+
+.game-card:hover {
+  border-color: var(--primary);
+  box-shadow: 0 8px 24px rgba(158, 34, 36, 0.14);
+}
+
+.game-card:active {
+  transform: scale(0.97);
+}
+
+.game-card .glyph {
+  font-size: 58px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.1));
+}
+
+.game-card .phase-chip {
+  margin-top: auto;
+}
+
+/* -------------------------------------------------------------
+   CHIPS, FIELDS & OPTION TILES
+   ------------------------------------------------------------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: var(--pearl);
+  color: var(--ink-muted-80);
+  border: 1.5px solid rgba(201, 142, 52, 0.25);
+  font-size: var(--fs-caption);
+  font-weight: 500;
+  box-shadow: 0 1px 4px rgba(70, 45, 20, 0.04);
+}
+
+.chip-selected {
+  border-color: var(--primary);
+  background: #fdf2f2;
+  color: var(--primary);
+  font-weight: 600;
+}
+
+.chip-blue {
+  background: linear-gradient(135deg, #a62426 0%, #8c1b1d 100%);
+  color: #fffdf9;
+  border-color: #d49c3d;
+  box-shadow: 0 2px 8px rgba(158, 34, 36, 0.28);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-xs);
+  margin-bottom: var(--s-md);
+}
+
+.label {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: -0.1px;
+}
+
+.input, select.input {
+  min-height: 56px;
+  border-radius: var(--r-md);
+  border: 1.5px solid rgba(201, 142, 52, 0.3);
+  background: var(--pearl);
+  padding: 10px 18px;
+  font-size: var(--fs-body);
+  box-shadow: inset 0 1px 3px rgba(70, 45, 20, 0.05);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.input:focus, select.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(158, 34, 36, 0.18);
+}
+
+.option-grid {
+  display: grid;
+  gap: var(--s-sm);
+  grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+}
+
+.option-tile {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.25);
+  border-radius: var(--r-md);
+  padding: var(--s-md);
+  min-height: 64px;
+  text-align: left;
+  font-size: var(--fs-body);
+  box-shadow: 0 2px 8px rgba(70, 45, 20, 0.04);
+  transition: border-color 0.12s ease, transform 0.08s ease, background 0.12s;
+}
+
+.option-tile.selected {
+  border: 2px solid var(--primary);
+  background: #fdf5f5;
+  box-shadow: 0 4px 14px rgba(158, 34, 36, 0.16);
+}
+
+.option-tile:active {
+  transform: scale(0.98);
+}
+
+.progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(160, 115, 75, 0.15);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--muga-gold));
+  transition: width 0.35s ease;
+}
+
+/* -------------------------------------------------------------
+   TEXTILE BOTTOM TABBAR
+   ------------------------------------------------------------- */
+.tabbar {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--s-md) + var(--safe-bottom));
+  z-index: 38;
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--r-pill);
+  background: rgba(22, 36, 54, 0.95);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border: 1.5px solid var(--muga-gold);
+  box-shadow: 0 10px 30px rgba(15, 25, 38, 0.35);
+  max-width: min(94vw, 520px);
+}
+
+.tab-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  min-height: 52px;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  color: var(--body-muted-dark);
+  font-size: var(--fs-caption);
+  transition: color 0.12s, background 0.12s, transform 0.08s;
+  text-decoration: none;
+}
+
+.tab-item.active {
+  color: #fffdf9;
+  background: linear-gradient(135deg, var(--primary) 0%, #861a1c 100%);
+  border: 1px solid var(--muga-gold);
+  box-shadow: 0 2px 10px rgba(158, 34, 36, 0.4);
+}
+
+.tab-item:active {
+  transform: scale(0.93);
+}
+
+/* -------------------------------------------------------------
+   CHOICE BUTTONS, ITEMS & SOUND VISUALIZER
+   ------------------------------------------------------------- */
+.choice-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 96px;
+  padding: var(--s-md) var(--s-lg);
+  border-radius: var(--r-lg);
+  background: var(--pearl);
+  border: 2px solid rgba(201, 142, 52, 0.28);
+  box-shadow: 0 4px 16px rgba(70, 45, 20, 0.06);
+  font-size: var(--fs-body-lg);
+  font-weight: 600;
+  transition: transform 0.1s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.choice-btn:hover {
+  border-color: var(--muga-gold);
+}
+
+.choice-btn:active {
+  transform: scale(0.96);
+}
+
+.choice-btn.correct {
+  border-color: var(--success);
+  background: var(--success-soft);
+  color: var(--success);
+  animation: pop 0.45s ease;
+}
+
+.choice-btn.glow {
+  border-color: var(--muga-gold);
+  box-shadow: 0 0 0 4px var(--muga-gold-glow);
+  animation: pulseGentle 1.2s infinite;
+}
+
+.item-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: min(30vw, 130px);
+  aspect-ratio: 1;
+  border-radius: var(--r-lg);
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.3);
+  box-shadow: var(--shadow-card);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  transition: transform 0.1s ease;
+}
+
+.item-tile:active {
+  transform: scale(0.94);
+}
+
+.item-tile.glow {
+  border-color: var(--muga-gold);
+  box-shadow: 0 0 0 4px var(--muga-gold-glow);
+  animation: pulseGentle 1.2s infinite;
+}
+
+.slot {
+  width: min(28vw, 110px);
+  aspect-ratio: 1;
+  border-radius: var(--r-lg);
+  border: 2px dashed rgba(201, 142, 52, 0.4);
+  background: rgba(244, 236, 224, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: var(--ink-muted-48);
+  font-size: var(--fs-caption);
+  text-align: center;
+  padding: 6px;
+}
+
+.slot.filled {
+  border: 2px solid var(--tea-green);
+  background: var(--tea-green-soft);
+  color: var(--tea-green);
+  animation: pop 0.4s ease;
+}
+
+/* -------------------------------------------------------------
+   QUESTION PROGRESS BANNER
+   ------------------------------------------------------------- */
+.question-banner {
+  width: 100%;
+  max-width: 680px;
+  margin: 0 auto var(--s-sm);
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.35);
+  border-radius: var(--r-lg);
+  padding: var(--s-sm) var(--s-md);
+  box-shadow: 0 4px 14px rgba(70, 45, 20, 0.06);
+  position: relative;
+  overflow: hidden;
+}
+
+.question-banner::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), var(--muga-gold), var(--primary));
+}
+
+.question-banner-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-sm);
+  margin-bottom: 8px;
+}
+
+.question-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.question-badge-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--primary);
+  box-shadow: 0 0 0 3px rgba(158, 34, 36, 0.25);
+}
+
+.question-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-caption);
+  background: var(--parchment);
+  border: 1px solid rgba(201, 142, 52, 0.3);
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.question-chip.muted-chip {
+  color: var(--ink-muted-48);
+  font-weight: 400;
+}
+
+.question-progress-track {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(160, 115, 75, 0.15);
+  overflow: hidden;
+}
+
+.question-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--primary), var(--muga-gold));
+  transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.question-badge-text {
+  font-size: var(--fs-body);
+}
+
+.question-banner-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--s-xs);
+}
+
+/* Large emoji / icon display helper */
+.big {
+  font-size: clamp(28px, 5vw, 42px);
+  line-height: 1;
+}
+
+/* -------------------------------------------------------------
+   REMINDER OVERLAY – Full-screen medicine prompt
+   Same indigo backdrop as praise-overlay, with fabric weave
+   ------------------------------------------------------------- */
+.reminder-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--s-md);
+  padding: var(--s-xl) var(--s-lg);
+  background: linear-gradient(165deg, rgba(20, 32, 46, 0.97) 0%, rgba(14, 22, 32, 0.99) 100%);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
+  color: var(--body-on-dark);
+  animation: praiseIn 0.45s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  /* Subtle indigo weave texture */
+  background-image:
+    linear-gradient(0deg, rgba(201, 142, 52, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 142, 52, 0.04) 1px, transparent 1px);
+  background-size: 8px 8px;
+  /* Golden thread top border */
+  border-top: 4px solid transparent;
+  border-image: repeating-linear-gradient(
+    90deg,
+    var(--muga-gold),
+    var(--muga-gold) 14px,
+    var(--primary) 14px,
+    var(--primary) 20px,
+    var(--pearl) 20px,
+    var(--pearl) 26px
+  ) 4;
+}
+
+/* -------------------------------------------------------------
+   MUSIC PLAYER CARD & EQUALIZER
+   ------------------------------------------------------------- */
+.music-player-card {
+  width: 100%;
+  max-width: 540px;
+  background: linear-gradient(145deg, #182535 0%, #131e2b 100%);
+  color: #fffdf9;
+  border: 2px solid rgba(201, 142, 52, 0.38);
+  border-radius: var(--r-xl);
+  padding: var(--s-xl) var(--s-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(15, 24, 36, 0.35);
+  transition: border-color 0.25s, box-shadow 0.25s;
+}
+
+.music-player-card.playing {
+  border-color: var(--muga-gold);
+  box-shadow: 0 10px 34px rgba(201, 142, 52, 0.28);
+}
+
+.music-waveform {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 48px;
+  margin-bottom: 8px;
+}
+
+.wave-bar {
+  width: 6px;
+  height: 12px;
+  background: var(--muga-gold);
+  border-radius: 4px;
+  transition: height 0.2s ease;
+}
+
+.music-player-card.playing .wave-bar {
+  animation: waveMotion 1s ease-in-out infinite alternate;
+}
+
+.music-player-card.playing .wave-bar:nth-child(1) { animation-delay: 0.0s; }
+.music-player-card.playing .wave-bar:nth-child(2) { animation-delay: 0.2s; }
+.music-player-card.playing .wave-bar:nth-child(3) { animation-delay: 0.4s; }
+.music-player-card.playing .wave-bar:nth-child(4) { animation-delay: 0.15s; }
+.music-player-card.playing .wave-bar:nth-child(5) { animation-delay: 0.35s; }
+
+@keyframes waveMotion {
+  0% { height: 8px; }
+  50% { height: 44px; }
+  100% { height: 16px; }
+}
+
+/* -------------------------------------------------------------
+   SPECIAL TEXTILE SCENE & RHYTHM COMPONENTS
+   ------------------------------------------------------------- */
+.rhythm-pad {
+  width: min(78vw, 340px);
+  aspect-ratio: 1;
+  border-radius: var(--r-pill);
+  background: linear-gradient(145deg, #182535 0%, #131e2b 100%);
+  color: #fffdf9;
+  border: 2px solid var(--muga-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(22px, 3vw, 30px);
+  font-weight: 700;
+  box-shadow: 0 20px 50px rgba(15, 24, 36, 0.35);
+  transition: transform 0.08s ease;
+}
+
+.rhythm-pad.hit {
+  background: var(--primary);
+  border-color: #fff;
+  transform: scale(0.94);
+}
+
+.rhythm-pad.lit {
+  background: linear-gradient(135deg, #a62426 0%, #8c1b1d 100%);
+  border-color: var(--muga-gold);
+  color: #fffdf9;
+  transform: scale(1.04);
+  box-shadow: 0 0 0 6px var(--muga-gold-glow);
+}
+
+.search-scene {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  max-width: 720px;
+}
+
+.scene-cell {
+  aspect-ratio: 1;
+  border-radius: var(--r-md);
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.24);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(26px, 5vw, 42px);
+  box-shadow: 0 2px 8px rgba(70, 45, 20, 0.04);
+}
+
+.scene-cell.found {
+  background: var(--tea-green-soft);
+  border-color: var(--tea-green);
+  animation: pop 0.5s ease;
+}
+
+.market-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-md);
+  background: var(--pearl);
+  border: 1.5px solid rgba(201, 142, 52, 0.25);
+  border-radius: var(--r-md);
+  padding: var(--s-sm) var(--s-md);
+}
+
+.money {
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-display-md);
+  color: var(--primary);
+}
+
+.story-panel {
+  max-width: 760px;
+  width: 100%;
+}
+
+.garden-canvas {
+  width: 100%;
+  max-width: 900px;
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1.5px solid rgba(201, 142, 52, 0.3);
+  box-shadow: var(--shadow-card);
+}
+
+.avatar-row {
+  display: flex;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+}
+
+.avatar-pick {
+  width: 84px;
+  height: 84px;
+  border-radius: var(--r-pill);
+  border: 2px solid rgba(201, 142, 52, 0.3);
+  background: var(--pearl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  box-shadow: 0 2px 8px rgba(70, 45, 20, 0.05);
+}
+
+.avatar-pick.selected {
+  border-color: var(--primary);
+  background: #fdf2f2;
+  box-shadow: 0 0 0 3px rgba(158, 34, 36, 0.2);
+}
+
+.photo-preview {
+  width: 120px;
+  height: 120px;
+  border-radius: var(--r-lg);
+  object-fit: cover;
+  border: 2px solid rgba(201, 142, 52, 0.35);
+  box-shadow: var(--shadow-card);
+}
+
+.cal-day {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-caption);
+  background: var(--pearl);
+  border: 1px solid rgba(201, 142, 52, 0.2);
+  gap: 2px;
+}
+
+.cal-day.taken {
+  background: var(--tea-green-soft);
+  color: var(--tea-green);
+  font-weight: 600;
+  border-color: var(--tea-green);
+}
+
+.cal-day.missed {
+  background: #fdeeee;
+  color: #b3372f;
+  font-weight: 600;
+  border-color: #e74c3c;
+}
+
+.cal-day.skipped {
+  background: var(--warn-soft);
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.alert-item {
+  display: flex;
+  gap: var(--s-sm);
+  align-items: flex-start;
+  background: var(--warn-soft);
+  border: 1.5px solid rgba(201, 142, 52, 0.3);
+  border-radius: var(--r-md);
+  padding: var(--s-md);
+  font-size: var(--fs-caption);
+}
+
+.divider {
+  height: 1px;
+  background: var(--divider-soft);
+  width: 100%;
+  border: none;
+  margin: var(--s-lg) 0;
+}
+
+.sticky-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 35;
+  padding: var(--s-md) 0 calc(var(--s-md) + var(--safe-bottom));
+  background: linear-gradient(180deg, rgba(251, 248, 242, 0) 0%, var(--canvas) 35%);
+  margin-top: var(--s-lg);
+}
+
+.center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--s-md);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+}
+
+.row-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-sm);
+  flex-wrap: wrap;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-md);
+}
+
+.mt-xs { margin-top: var(--s-xs); }
+.mt-sm { margin-top: var(--s-sm); }
+.mt-md { margin-top: var(--s-md); }
+.mt-lg { margin-top: var(--s-lg); }
+.mt-xl { margin-top: var(--s-xl); }
+.mt-xxl { margin-top: var(--s-xxl); }
+
+@keyframes pop {
+  0% { transform: scale(0.92); }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+@keyframes pulseGentle {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+
+@keyframes sway {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(4deg); }
+  75% { transform: rotate(-4deg); }
+}
+
+@media (max-width: 640px) {
+  .page {
+    padding: var(--s-lg) var(--s-md) calc(var(--s-xl) + var(--safe-bottom) + 84px);
+  }
+  .nav-brand span {
+    font-size: 19px;
+  }
+}
+
+/* -------------------------------------------------------------
+   PAGE ENTER ANIMATION
+   ------------------------------------------------------------- */
+.enter-anim {
+  animation: fadeSlideUp 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+@keyframes fadeSlideUp {
+  0% {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -------------------------------------------------------------
+   INSTRUCTION BAR (Game & Baseline screens)
+   Styled as Eri Silk Parchment ribbon with golden-thread borders
+   ------------------------------------------------------------- */
+.instruction-bar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  gap: var(--s-sm);
+  padding: var(--s-sm) var(--s-md);
+  background: var(--parchment);
+  border-bottom: 2.5px solid transparent;
+  border-image: repeating-linear-gradient(
+    90deg,
+    var(--primary),
+    var(--primary) 10px,
+    var(--muga-gold) 10px,
+    var(--muga-gold) 16px,
+    var(--pearl) 16px,
+    var(--pearl) 20px
+  ) 3;
+  box-shadow: 0 4px 14px rgba(70, 45, 20, 0.08);
+  /* Subtle fabric weave */
+  background-image: linear-gradient(0deg, rgba(160, 115, 75, 0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(160, 115, 75, 0.03) 1px, transparent 1px);
+  background-size: 6px 6px;
+}
+
+.instruction-bar p {
+  flex: 1;
+  font-size: var(--fs-body);
+  font-weight: 500;
+  color: var(--ink);
+  line-height: 1.4;
+  margin: 0;
+}
+
+/* -------------------------------------------------------------
+   GAME BOARD WRAPPER
+   ------------------------------------------------------------- */
+.board-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  padding: var(--s-md) 0;
+}
+
+/* -------------------------------------------------------------
+   CUE TARGET – Muga Gold attention glow pulse
+   Used on idle game boards and primary CTA prompts
+   ------------------------------------------------------------- */
+.cue-target {
+  animation: cueGlow 1.6s ease-in-out infinite;
+}
+
+@keyframes cueGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(201, 142, 52, 0);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(201, 142, 52, 0.22), 0 0 24px 4px rgba(201, 142, 52, 0.12);
+  }
+}
+
+/* -------------------------------------------------------------
+   PRAISE OVERLAY – Full-screen celebration dialog
+   Indigo handloom-dyed backdrop with golden silk accents
+   ------------------------------------------------------------- */
+.praise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: var(--s-md);
+  padding: var(--s-xl) var(--s-lg);
+  background: linear-gradient(165deg, rgba(20, 32, 46, 0.96) 0%, rgba(14, 22, 32, 0.98) 100%);
+  backdrop-filter: saturate(160%) blur(20px);
+  -webkit-backdrop-filter: saturate(160%) blur(20px);
+  color: #fffdf9;
+  /* Golden silk thread border */
+  border-top: 4px solid transparent;
+  border-image: repeating-linear-gradient(
+    90deg,
+    var(--muga-gold),
+    var(--muga-gold) 14px,
+    var(--primary) 14px,
+    var(--primary) 20px,
+    var(--pearl) 20px,
+    var(--pearl) 26px
+  ) 4;
+  animation: praiseIn 0.55s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  /* Subtle indigo weave texture overlay */
+  background-image:
+    linear-gradient(0deg, rgba(201, 142, 52, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201, 142, 52, 0.04) 1px, transparent 1px);
+  background-size: 8px 8px;
+}
+
+@keyframes praiseIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* -------------------------------------------------------------
+   PRAISE STARS – Floating, pulsing celebration emoji
+   ------------------------------------------------------------- */
+.praise-stars {
+  font-size: clamp(48px, 10vw, 88px);
+  line-height: 1;
+  animation: floatStars 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 4px 16px rgba(201, 142, 52, 0.45));
+  user-select: none;
+}
+
+@keyframes floatStars {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  25% {
+    transform: translateY(-8px) scale(1.06);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.02);
+  }
+  75% {
+    transform: translateY(-10px) scale(1.08);
+  }
+}
