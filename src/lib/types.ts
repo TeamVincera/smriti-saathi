@@ -11,6 +11,7 @@ export const LANGUAGES: { code: Language; label: string; native: string }[] = [
 
 export interface PatientProfile {
   name: string
+  dob?: string
   age?: number
   photo?: string
   avatar?: string
@@ -62,7 +63,7 @@ export interface Profile {
   createdAt: number
 }
 
-export type MedForm = 'tablet' | 'capsule' | 'syrup' | 'injection'
+export type MedForm = 'tablet' | 'capsule' | 'syrup' | 'drops' | 'injection' | 'ointment' | 'other'
 
 export interface Med {
   id: string
@@ -72,6 +73,7 @@ export interface Med {
   dosage: string
   times: string[]
   food: 'before' | 'after' | 'none'
+  instructions?: string
   durationDays?: number
   stock?: number
   active: boolean
@@ -85,7 +87,7 @@ export interface MedLogEntry {
   scheduledFor: string
   ts: number
   status: MedStatus
-  method?: 'tap' | 'voice'
+  method?: 'tap' | 'slide' | 'voice'
 }
 
 export type EventKind =
@@ -102,10 +104,11 @@ export type EventKind =
   | 'session_end'
   | 'reminder_fired'
   | 'reminder_snoozed'
+  | 'reminder_completed'
+  | 'reminder_dismissed'
   | 'med_taken'
   | 'med_logged'
   | 'alert_raised'
-  | 'garden_watered'
   | 'sync_stub'
 
 export interface LedgerEvent {
@@ -144,11 +147,29 @@ export interface SrtItem {
   lastSeenTs?: number
 }
 
-export interface GardenState {
-  points: number
-  plantedFlowers: number
-  wateredDates: string[]
-  history: { ts: number; reason: string; points: number }[]
+export interface DailyReminder {
+  id: string
+  title: string
+  titleHi?: string
+  description?: string
+  time: string // "HH:MM"
+  emoji?: string
+  enabled?: boolean
+  active?: boolean
+  days?: number[] // 0=Sun, 1=Mon, ..., 6=Sat (undefined = every day)
+  category?: 'hydration' | 'meal' | 'activity' | 'rest' | 'routine' | 'general' | string
+}
+
+export interface AppointmentReminder {
+  id: string
+  title: string
+  doctorName?: string
+  date: string // "YYYY-MM-DD"
+  time: string // "HH:MM"
+  location?: string
+  notes?: string
+  enabled?: boolean
+  active?: boolean
 }
 
 export interface AppAlert {
@@ -172,3 +193,4 @@ export const DEFAULT_CONFIG: ClinicalConfig = {
   maxSessionsPerDay: 3,
   gracePeriodMin: 30,
 }
+

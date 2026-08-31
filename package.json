@@ -9,10 +9,21 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "icons": "node scripts/gen-icons.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "test:e2e:desktop": "playwright test --project='Desktop Chromium' --project='Desktop Firefox' --project='Desktop Safari'",
+    "test:e2e:mobile": "playwright test --project='Mobile Safari (iPhone 14)' --project='Tablet Safari (iPad Pro 11)' --project='Mobile Chrome (Pixel 7)'",
+    "sync": "npm run build && npx cap sync",
+    "ios:sync": "npm run build && npx cap sync ios",
     "ios:open": "npm run build && npx cap sync ios && open ios/App/App.xcodeproj",
-    "ios:run": "npm run build && npx cap sync ios && xcodebuild -project ios/App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build && xcrun simctl install 'iPhone 17 Pro' ~/Library/Developer/Xcode/DerivedData/App-*/Build/Products/Debug-iphonesimulator/App.app && xcrun simctl launch 'iPhone 17 Pro' com.smriti.sathi"
+    "ios:run": "npm run build && npx cap sync ios && xcodebuild -project ios/App/App.xcodeproj -scheme App -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -quiet build && xcrun simctl install 'iPhone 17 Pro' ~/Library/Developer/Xcode/DerivedData/App-*/Build/Products/Debug-iphonesimulator/App.app && xcrun simctl launch 'iPhone 17 Pro' com.smriti.sathi",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npm run build && npx cap sync android && npx cap open android"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
     "@capacitor/core": "^8.5.0",
     "@capacitor/ios": "^8.5.0",
     "react": "^18.3.1",
@@ -20,12 +31,19 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^8.5.0",
+    "@playwright/test": "^1.62.1",
     "@reticlehq/react": "^2.12.0",
     "@reticlehq/vite-plugin": "^2.12.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
+    "fake-indexeddb": "^6.2.5",
+    "jsdom": "^30.0.1",
     "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "vite": "^5.4.11",
+    "vitest": "^4.1.11"
   }
 }

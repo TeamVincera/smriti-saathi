@@ -1,6 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
 import { RoundHeader } from './shared'
+import { sessionRng } from '../lib/rng'
+import type { Rng } from '../lib/rng'
+import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playTap, playChime, playSoftCue } from '../lib/audio'
 
 type Side = 0 | 1
@@ -10,26 +13,39 @@ interface Beat {
   gapMs: number
 }
 
-function makePattern(beats: number): Beat[] {
+function makePattern(rng: Rng, beats: number): Beat[] {
+  const baseGap = 700 - Math.min(200, (beats - 4) * 60)
   const out: Beat[] = []
-  let side: Side = Math.random() < 0.5 ? 0 : 1
+  let side: Side = rng() < 0.5 ? 0 : 1
   for (let i = 0; i < beats; i++) {
-    out.push({ side, gapMs: 700 + (i % 2) * 150 })
-    if (Math.random() < 0.7) side = (1 - side) as Side
+    out.push({ side, gapMs: baseGap + ((i * 37) % 2) * 150 })
+    if (rng() < 0.7) side = (1 - side) as Side
   }
   return out
 }
 
-export function CherawSteps({ difficulty, logAction, complete }: GameProps) {
-  const beatCount = difficulty >= 1 ? 6 : 4
-  const pattern = useMemo(() => makePattern(beatCount), [beatCount])
+const DOMAIN = 'rhythm'
+const TOTAL_PATTERNS = 3
+
+export function CherawSteps({ logAction, complete }: GameProps) {
+  const rng = useRef(sessionRng('cheraw')).current
+  const [patternIdx, setPatternIdx] = useState(0)
+  const [level, setLevel] = useState(() => nextLevel(DOMAIN))
+  const beatCount = useMemo(() => 4 + level, [level])
+  const pattern = useMemo(() => makePattern(rng, beatCount), [rng, beatCount, patternIdx])
   const [phase, setPhase] = useState<'listen' | 'play'>('listen')
   const [litSide, setLitSide] = useState<Side | null>(null)
   const [beatIdx, setBeatIdx] = useState(0)
   const [hits, setHits] = useState(0)
   const [missFlash, setMissFlash] = useState(false)
-  const unprompted = useRef(0)
+  const patternMisses = useRef(0)
+  const cumulativeHits = useRef(0)
+  const totalBeats = useRef(0)
   const doneRef = useRef(false)
+
+  useEffect(() => {
+    totalBeats.current += pattern.length
+  }, [pattern])
 
   useEffect(() => {
     if (phase !== 'listen') return
@@ -52,28 +68,48 @@ export function CherawSteps({ difficulty, logAction, complete }: GameProps) {
       cancelled = true
       clearTimeout(t)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase])
+  }, [phase, pattern])
+
+  function finishPattern() {
+    doneRef.current = true
+    void playChime()
+    recordAnswer(DOMAIN, level, patternMisses.current <= beatCount / 4)
+    patternMisses.current = 0
+    setTimeout(() => {
+      if (patternIdx + 1 < TOTAL_PATTERNS) {
+        setLevel(nextLevel(DOMAIN))
+        setPatternIdx((p) => p + 1)
+        setBeatIdx(0)
+        setHits(0)
+        setPhase('listen')
+        doneRef.current = false
+      } else {
+        const total = Math.max(totalBeats.current, 1)
+        complete({
+          itemsTotal: total,
+          itemsUnprompted: Math.min(cumulativeHits.current, total),
+          completion: 1,
+        })
+      }
+    }, 900)
+  }
 
   useEffect(() => {
     if (phase !== 'play') return
-    if (beatIdx >= pattern.length) {
-      doneRef.current = true
-      void playChime()
-      setTimeout(() => complete({ itemsTotal: pattern.length, itemsUnprompted: Math.max(hits, unprompted.current), completion: 1 }), 900)
-    }
+    if (beatIdx >= pattern.length) finishPattern()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatIdx, phase])
 
   function tap(side: Side) {
     if (phase !== 'play' || doneRef.current || beatIdx >= pattern.length) return
     if (side === pattern[beatIdx].side) {
-      unprompted.current++
       setHits((h) => h + 1)
+      cumulativeHits.current++
       playChime()
       logAction('unprompted')
       setBeatIdx((i) => i + 1)
     } else {
+      patternMisses.current++
       playSoftCue()
       logAction('cued')
       setMissFlash(true)
@@ -83,7 +119,7 @@ export function CherawSteps({ difficulty, logAction, complete }: GameProps) {
 
   return (
     <div className="center-col" style={{ width: '100%' }}>
-      <RoundHeader now={Math.min(beatIdx + 1, pattern.length)} total={pattern.length} unit="round" label={`🎵 Rhythm ${hits} / ${pattern.length}`} />
+      <RoundHeader now={patternIdx + 1} total={TOTAL_PATTERNS} unit="round" label={`🎵 Rhythm ${hits} / ${pattern.length}`} />
       <p className="lead">{phase === 'listen' ? 'Listen to the bamboo clapping…' : 'Now tap the same side as the bamboo!'}</p>
       <div className="row" style={{ gap: 'var(--s-xl)', justifyContent: 'center' }}>
         {[0, 1].map((s) => (

@@ -1,57 +1,112 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import type { ChangeEvent, ReactNode } from 'react'
-import type { Language, Profile } from '../lib/types'
-import { LANGUAGES } from '../lib/types'
-import { translate } from '../i18n'
-import { speak, stopSpeaking, listenOnce } from '../lib/speech'
-import { playChime, playInstrument } from '../lib/audio'
+import { useState, useEffect, useRef, type ChangeEvent } from 'react'
 import { useApp } from '../state'
-import { seedBaselineForColdStart } from '../lib/ai'
-import { SpeakerButton } from '../components/SpeakerButton'
+import { LANGUAGES, type Language } from '../lib/types'
+import type { Profile } from '../lib/types'
+export { sanitizePersonName } from '../lib/formatters'
+import { sanitizePersonName, calculateAgeFromDob } from '../lib/formatters'
+import { playChime, playTap } from '../lib/audio'
 import { Icon } from '../components/Icons'
-import { RoundHeader } from '../games/shared'
 import { navigate } from '../router'
+import { seedBaselineForColdStart } from '../lib/ai'
 
-const AVATARS = ['👵', '👴', '🧓', '👩‍🌾', '👨‍🌾', '🧕', '👩‍🏫', '👨‍🍳']
-const STATES = ['Assam', 'Meghalaya', 'Tripura', 'Arunachal Pradesh', 'Nagaland', 'Mizoram', 'Manipur', 'Sikkim']
-const FESTIVALS = ['Bihu', 'Wangala', 'Hornbill Festival', 'Durga Puja', 'Bwisagu', 'Ningol Chakouba', 'Losar', 'Chapchar Kut']
-const HOBBIES = ['Gardening', 'Cooking', 'Singing', 'Weaving', 'Fishing', 'Temple/Church visits', 'Storytelling']
+export const FESTIVALS = ['Bihu', 'Durga Puja', 'Ali-Aye-Ligang', 'Baishagu', 'Me-Dam-Me-Phi', 'Diwali', 'Chhath']
+export const HOBBIES = ['Gardening', 'Weaving', 'Singing', 'Cooking', 'Tea making', 'Storytelling', 'Folk songs']
+export const STATES = ['Assam', 'Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Tripura', 'Arunachal Pradesh', 'Sikkim', 'Other']
 
-function useT(lang: Language | null) {
-  return useMemo(
-    () => (key: string, vars?: Record<string, string | number>) => translate(lang ?? 'en', key, vars),
-    [lang]
-  )
-}
+export const COUNTRY_CODES = [
+  { code: 'IN', dial: '+91', label: 'India (+91)', digits: 10 },
+  { code: 'AE', dial: '+971', label: 'UAE (+971)', digits: 9 },
+  { code: 'US', dial: '+1', label: 'USA (+1)', digits: 10 },
+  { code: 'GB', dial: '+44', label: 'UK (+44)', digits: 10 },
+  { code: 'BD', dial: '+880', label: 'Bangladesh (+880)', digits: 10 },
+  { code: 'NP', dial: '+977', label: 'Nepal (+977)', digits: 10 },
+]
 
 export function Onboarding() {
-  const { setProfile } = useApp()
+  const { setProfile, t } = useApp()
+  const [lang, setLang] = useState<Language>('en')
   const [step, setStep] = useState(0)
-  const [lang, setLang] = useState<Language | null>(null)
-  const t = useT(lang)
 
-  const [patient, setPatient] = useState({ name: '', age: '', photo: '', avatar: '' })
-  const [education, setEducation] = useState('')
+  // Step 1: Patient details
+  const [patient, setPatient] = useState({
+    name: '',
+    dob: '',
+    age: '',
+    avatar: '👵',
+    photo: '',
+  })
+  const [education, setEducation] = useState('Secondary school')
+
+  // Step 2: Clinical
   const [stage, setStage] = useState<'mild' | 'moderate'>('mild')
   const [diagnosisDate, setDiagnosisDate] = useState('')
   const [doctorContact, setDoctorContact] = useState('')
-  const [state_, setState_] = useState('')
+
+  // Step 3: Culture
+  const [state_, setState_] = useState('Assam')
   const [community, setCommunity] = useState('')
-  const [festivals, setFestivals] = useState<string[]>([])
   const [occupation, setOccupation] = useState('')
-  const [hobbies, setHobbies] = useState<string[]>([])
+  const [festivals, setFestivals] = useState<string[]>(['Bihu'])
+  const [customFestival, setCustomFestival] = useState('')
+  const [showOtherFestival, setShowOtherFestival] = useState(false)
+  const [hobbies, setHobbies] = useState<string[]>(['Gardening'])
+  const [customHobby, setCustomHobby] = useState('')
+  const [showOtherHobby, setShowOtherHobby] = useState(false)
+
+  // Step 4: Family members (starts with clean empty input slot)
   const [familyMembers, setFamilyMembers] = useState<{ name: string; relation: string; emoji: string; photo?: string }[]>([
-    { name: '', relation: '', emoji: '👩' },
+    { name: '', relation: 'Daughter', emoji: '👩' },
   ])
-  const [routine, setRoutine] = useState({ wake: '06:00', breakfast: '08:00', lunch: '13:00', dinner: '20:00', sleep: '21:30' })
-  const [caregiver, setCaregiver] = useState({ name: '', phone: '', relationship: '' })
+
+  // Step 5: Routine
+  const [routine, setRoutine] = useState({
+    wake: '06:00',
+    breakfast: '08:00',
+    lunch: '13:00',
+    dinner: '20:00',
+    sleep: '21:30',
+  })
+
+  // Step 6: Caregiver
+  const [caregiver, setCaregiver] = useState({ name: '', phone: '', relationship: 'Son' })
+  const [caregiverCountry, setCaregiverCountry] = useState('+91')
+  const [customRelation, setCustomRelation] = useState('')
   const [asha, setAsha] = useState({ name: '', phone: '' })
+  const [ashaCountry, setAshaCountry] = useState('+91')
+
+  // Step 7: PIN
   const [pin, setPin] = useState('')
+  const [confirmPin, setConfirmPin] = useState('')
+  const [activePinField, setActivePinField] = useState<'pin' | 'confirm'>('pin')
 
   const fileRef = useRef<HTMLInputElement>(null)
   const famFileRefs = useRef<(HTMLInputElement | null)[]>([])
 
-  const totalSteps = 9
+  const selectedCaregiverCountry = COUNTRY_CODES.find((c) => c.dial === caregiverCountry) ?? COUNTRY_CODES[0]
+  const selectedAshaCountry = COUNTRY_CODES.find((c) => c.dial === ashaCountry) ?? COUNTRY_CODES[0]
+
+  function onDobChange(dobVal: string) {
+    const computedAge = calculateAgeFromDob(dobVal)
+    setPatient((p) => ({ ...p, dob: dobVal, age: computedAge !== null ? String(computedAge) : p.age }))
+  }
+
+  function addCustomFestival() {
+    const f = customFestival.trim()
+    if (!f) return
+    if (!festivals.includes(f)) {
+      setFestivals((prev) => [...prev, f])
+    }
+    setCustomFestival('')
+  }
+
+  function addCustomHobby() {
+    const h = customHobby.trim()
+    if (!h) return
+    if (!hobbies.includes(h)) {
+      setHobbies((prev) => [...prev, h])
+    }
+    setCustomHobby('')
+  }
 
   async function finishBaseline(results: { accuracy: number; latencyMs: number }) {
     await setProfile(buildProfile())
@@ -63,10 +118,14 @@ export function Onboarding() {
   }
 
   function buildProfile(): Profile {
+    const finalCaregiverPhone = caregiver.phone ? `${caregiverCountry} ${caregiver.phone}` : ''
+    const finalAshaPhone = asha.phone ? `${ashaCountry} ${asha.phone}` : ''
+    const finalRelation = caregiver.relationship === 'Other' && customRelation.trim() ? customRelation.trim() : caregiver.relationship
     return {
       language: lang ?? 'en',
       patient: {
         name: patient.name.trim() || 'Friend',
+        dob: patient.dob || undefined,
         age: patient.age ? parseInt(patient.age, 10) : undefined,
         photo: patient.photo || undefined,
         avatar: patient.avatar || '👵',
@@ -82,10 +141,21 @@ export function Onboarding() {
         hobbies,
         familyMembers: familyMembers
           .filter((f) => f && f.name && f.name.trim().length > 0)
-          .map((f) => ({ name: f.name.trim(), relation: f.relation || 'Family', emoji: f.emoji, photo: f.photo })),
+          .map((f) => ({
+            name: f.name.trim(),
+            relation: f.relation || 'Family',
+            emoji: f.emoji || '👩',
+            photo: f.photo,
+          })),
       },
       routine,
-      caregiver: { ...caregiver, ashaName: asha.name || undefined, ashaPhone: asha.phone || undefined },
+      caregiver: {
+        name: caregiver.name.trim() || 'Caregiver',
+        phone: finalCaregiverPhone || '9876543210',
+        relationship: finalRelation || 'Family',
+        ashaName: asha.name ? asha.name.trim() : undefined,
+        ashaPhone: finalAshaPhone || undefined,
+      },
       pin: pin || undefined,
       onboarded: true,
       createdAt: Date.now(),
@@ -111,349 +181,939 @@ export function Onboarding() {
       .catch(() => {})
   }
 
-  function speakStep(text: string) {
-    if (!lang) return
-    void speak(text, lang)
-  }
-
   return (
-    <div className="app" style={{ background: 'var(--parchment)' }}>
-      <header className="nav-global" style={{ paddingInline: 'max(var(--s-lg), env(safe-area-inset-left))' }}>
-        <div className="row" style={{ gap: 12 }}>
-          <span className="title" style={{ color: '#fff' }}>{t('brand')}</span>
-        </div>
-        <span className="caption" style={{ color: '#ccc' }}>
-          {lang ? `Step ${Math.min(step + 1, totalSteps)} of ${totalSteps}` : ''}
-        </span>
-      </header>
-
-      <div style={{ padding: 'var(--s-md) var(--s-lg)' }}>
-        <div className="progress-track" aria-hidden="true">
-          <div className="progress-fill" style={{ width: `${((step + 1) / totalSteps) * 100}%` }} />
-        </div>
-      </div>
-
-      <main className="page enter-anim" key={step} style={{ paddingTop: 'var(--s-sm)', paddingBottom: '24px' }}>
+    <div className="app">
+      <main className="page-standalone enter-anim" key={step}>
+        {/* Step 0: Choose Your Language */}
         {step === 0 && (
-          <section className="center-col">
-            <h1 className="hero-title">{t('onb_lang_title')}</h1>
-            <p className="lead">{t('onb_lang_sub')}</p>
-            <div className="option-grid mt-lg" style={{ width: '100%', maxWidth: 780 }}>
-              {LANGUAGES.map((l) => (
-                <button
-                  key={l.code}
-                  data-testid={`lang-option-${l.code}`}
-                  className={`option-tile ${lang === l.code ? 'selected' : ''}`}
-                  onClick={() => {
-                    setLang(l.code)
-                    void playChime()
-                    void speak(t('onb_lang_sub'), l.code)
-                  }}
-                >
-                  <span style={{ fontSize: 28 }}>{lang === l.code ? '🔵' : '⚪'}</span>
-                  <span>
-                    <strong>{l.native}</strong>
-                    <br />
-                    <span className="caption">{l.label}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="sticky-cta" style={{ width: '100%' }}>
-              <button className="btn btn-primary btn-big btn-block" data-testid="lang-next-btn" disabled={!lang} onClick={() => { stopSpeaking(); setStep(1) }}>
-                {t('next')} →
-              </button>
-            </div>
-          </section>
-        )}
-
-        {step === 1 && (
-          <section className="stack" style={{ maxWidth: 720, margin: '0 auto' }}>
-            <div className="row-between">
-              <h1 className="display-lg">{t('onb_patient')}</h1>
-              <SpeakerButton text={t('onb_name')} lang={lang ?? 'en'} />
-            </div>
-            <p className="lead">{t('onb_name')} *</p>
-            <input
-              data-testid="patient-name-input"
-              className="input"
-              value={patient.name}
-              onChange={(e) => setPatient((p) => ({ ...p, name: e.target.value }))}
-              placeholder={t('onb_name')}
-              autoFocus
-            />
-            <div className="field">
-              <label className="label">{t('onb_age')}</label>
-              <input data-testid="patient-age-input" className="input" inputMode="numeric" value={patient.age} onChange={(e) => setPatient((p) => ({ ...p, age: e.target.value.replace(/\D/g, '').slice(0, 3) }))} />
-            </div>
-            <label className="label">{t('onb_photo')}</label>
-            <div className="row">
-              <button className="btn btn-pearl" onClick={() => fileRef.current?.click()}>
-                <Icon name="camera" /> Photo
-              </button>
-              <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
-              {patient.photo && <img src={patient.photo} alt="" className="photo-preview" />}
-            </div>
-            <div className="avatar-row">
-              {AVATARS.map((a) => (
-                <button
-                  key={a}
-                  className={`avatar-pick ${(patient.avatar === a && !patient.photo) ? 'selected' : ''}`}
-                  onClick={() => {
-                    setPatient((p) => ({ ...p, avatar: a, photo: '' }))
-                    void playInstrument('bell')
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
-            <div className="field mt-lg">
-              <label className="label">Education</label>
-              <select className="input" value={education} onChange={(e) => setEducation(e.target.value)}>
-                <option value="">—</option>
-                <option>No formal schooling</option>
-                <option>Primary school</option>
-                <option>Secondary school</option>
-                <option>Higher secondary</option>
-                <option>Graduate</option>
-              </select>
-            </div>
-            <NavRow t={t} onBack={() => setStep(0)} onNext={() => setStep(2)} nextEnabled={patient.name.trim().length > 0} onSpeak={() => speakStep(`${t('onb_name')}.`)} />
-          </section>
-        )}
-
-        {step === 2 && (
-          <section className="stack" style={{ maxWidth: 720, margin: '0 auto' }}>
-            <h1 className="display-lg">{t('onb_clinical')}</h1>
-            <label className="label">Stage</label>
-            <div className="row">
-              {(['mild', 'moderate'] as const).map((s) => (
-                <button key={s} className={`chip chip-selected ${stage === s ? 'chip-blue' : ''}`} style={{ minHeight: 56, fontSize: 'var(--fs-body)' }} onClick={() => setStage(s)}>
-                  {s === 'mild' ? t('onb_stage_mild') : t('onb_stage_moderate')}
-                </button>
-              ))}
-            </div>
-            <div className="field">
-              <label className="label">Diagnosis date (optional)</label>
-              <input className="input" type="date" value={diagnosisDate} onChange={(e) => setDiagnosisDate(e.target.value)} />
-            </div>
-            <div className="field">
-              <label className="label">Doctor / PHC contact (optional)</label>
-              <input className="input" value={doctorContact} onChange={(e) => setDoctorContact(e.target.value)} placeholder="Name or phone" />
-            </div>
-            <p className="caption">Medicines can be added later in the Caregiver section.</p>
-            <NavRow t={t} onBack={() => setStep(1)} onNext={() => setStep(3)} nextEnabled onSpeak={() => speakStep(t('onb_clinical'))} />
-          </section>
-        )}
-
-        {step === 3 && (
-          <section className="stack" style={{ maxWidth: 760, margin: '0 auto' }}>
-            <h1 className="display-lg">{t('onb_cultural')}</h1>
-            <div className="field">
-              <label className="label">State</label>
-              <select className="input" value={state_} onChange={(e) => setState_(e.target.value)}>
-                <option value="">—</option>
-                {STATES.map((s) => <option key={s}>{s}</option>)}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label">Community / tribe (optional)</label>
-              <input className="input" value={community} onChange={(e) => setCommunity(e.target.value)} />
-            </div>
-            <label className="label">Familiar festivals</label>
-            <div className="option-grid">
-              {FESTIVALS.map((f) => (
-                <button key={f} className={`option-tile ${festivals.includes(f) ? 'selected' : ''}`} onClick={() => toggle(festivals, f, setFestivals)}>
-                  <span>{festivals.includes(f) ? '✅' : '⚪'}</span> {f}
-                </button>
-              ))}
-            </div>
-            <div className="field mt-lg">
-              <label className="label">Occupation history (optional)</label>
-              <input className="input" value={occupation} onChange={(e) => setOccupation(e.target.value)} placeholder="Farmer, teacher, weaver…" />
-            </div>
-            <label className="label">Hobbies</label>
-            <div className="row">
-              {HOBBIES.map((h) => (
-                <button key={h} className={`chip ${hobbies.includes(h) ? 'chip-selected chip-blue' : ''}`} onClick={() => toggle(hobbies, h, setHobbies)}>
-                  {h}
-                </button>
-              ))}
-            </div>
-            <NavRow t={t} onBack={() => setStep(2)} onNext={() => setStep(4)} nextEnabled onSpeak={() => speakStep(t('onb_cultural'))} />
-          </section>
-        )}
-
-        {step === 4 && (
-          <section className="stack" style={{ maxWidth: 680, margin: '0 auto' }}>
-            <div className="row-between">
-              <h1 className="display-lg">👨‍👩‍👧 Faces of Home (Family Members)</h1>
-              <SpeakerButton text="Add family members with their names and photos. Their faces will appear in the memory game." lang={lang ?? 'en'} />
-            </div>
-            <p className="lead">
-              Add family members, their relations, and photos. These photos will appear directly in the <strong>Faces of Home</strong> memory game.
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
+              Choose your language
+            </h1>
+            <p style={{ fontSize: 16, color: 'var(--ink-secondary)', lineHeight: 1.5, marginBottom: 36, maxWidth: 360 }}>
+              Select the language you are most comfortable with to personalize your experience.
             </p>
 
-            <div className="stack" style={{ gap: 'var(--s-md)' }}>
-              {familyMembers.map((fm, i) => (
-                <div key={i} className="card card-parchment" style={{ padding: 'var(--s-md)', border: '1.5px solid var(--hairline)' }}>
-                  <div className="row" style={{ gap: 14, alignItems: 'flex-start' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                      <button
-                        className="avatar-pick"
-                        style={{ width: 84, height: 84, fontSize: 36, overflow: 'hidden', flexShrink: 0, position: 'relative' }}
-                        onClick={() => famFileRefs.current[i]?.click()}
-                        aria-label="Upload photo"
-                      >
-                        {fm.photo ? (
-                          <img src={fm.photo} alt={fm.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : (
-                          fm.emoji || '👩'
-                        )}
-                      </button>
-                      <button
-                        className="btn btn-pearl"
-                        style={{ minHeight: 36, padding: '4px 10px', fontSize: 13 }}
-                        onClick={() => famFileRefs.current[i]?.click()}
-                      >
-                        <Icon name="camera" size={16} /> {fm.photo ? 'Change' : '+ Photo'}
-                      </button>
-                      <input
-                        ref={(el) => {
-                          famFileRefs.current[i] = el
-                        }}
-                        type="file"
-                        accept="image/*"
-                        hidden
-                        onChange={(e) => onFamilyPhoto(i, e)}
-                      />
-                    </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2, 1fr)',
+                gap: 16,
+                width: '100%',
+                marginBottom: 48,
+              }}
+            >
+              {LANGUAGES.map((l) => {
+                const isSelected = lang === l.code
+                return (
+                  <button
+                    key={l.code}
+                    type="button"
+                    data-testid={`lang-option-${l.code}`}
+                    onClick={() => setLang(l.code)}
+                    style={{
+                      background: 'var(--card)',
+                      border: isSelected ? '2px solid var(--primary)' : '1px solid var(--border)',
+                      borderRadius: 12,
+                      padding: '24px 16px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      minHeight: 90,
+                      gap: 6,
+                      boxShadow: isSelected ? '0 4px 12px rgba(22, 36, 54, 0.08)' : '0 1px 3px rgba(0, 0, 0, 0.02)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', lineHeight: 1.2 }}>
+                      {l.native}
+                    </span>
+                    {l.code !== 'en' && (
+                      <span style={{ fontSize: 14, color: 'var(--ink-muted)' }}>
+                        {l.label}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
 
-                    <div className="stack" style={{ flex: 1, gap: 10, minWidth: 0 }}>
-                      <div>
-                        <label className="label">Name *</label>
+            <button
+              className="btn btn-block"
+              data-testid="lang-next-btn"
+              disabled={!lang}
+              onClick={() => setStep(1)}
+              style={{
+                background: 'var(--secondary)',
+                color: '#fff',
+                borderRadius: 28,
+                minHeight: 56,
+                fontSize: 18,
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              Continue →
+            </button>
+          </section>
+        )}
+
+        {/* Step 1: Patient Details */}
+        {step === 1 && (
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 10 }}>
+              About the patient
+            </h1>
+            <p style={{ fontSize: 15, color: 'var(--ink-secondary)', textAlign: 'center', lineHeight: 1.5, marginBottom: 24, maxWidth: 360 }}>
+              Let's set up the profile for the person you are caring for.
+            </p>
+
+            <div className="card" style={{ width: '100%', padding: '24px 20px', borderRadius: 24, marginBottom: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>
+                Profile Photo & Avatar
+              </h3>
+
+              <div
+                onClick={() => fileRef.current?.click()}
+                style={{
+                  width: 110,
+                  height: 110,
+                  borderRadius: '50%',
+                  background: '#CDE8F6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  marginBottom: 16,
+                  color: '#0B4A72',
+                  border: '2px solid #92CCE8',
+                }}
+              >
+                {patient.photo ? (
+                  <img src={patient.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <Icon name="cameraPlus" size={44} color="#8A9DBE" />
+                )}
+              </div>
+              <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
+
+              <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
+                {['👵', '👴', '🧕', '🧑'].map((av) => (
+                  <button
+                    key={av}
+                    type="button"
+                    className={`btn ${patient.avatar === av ? 'btn-primary' : 'btn-secondary'}`}
+                    onClick={() => setPatient((p) => ({ ...p, avatar: av }))}
+                    style={{ fontSize: 22, padding: '6px 14px', borderRadius: 12 }}
+                  >
+                    {av}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="card" style={{ width: '100%', padding: '24px 20px', borderRadius: 24, marginBottom: 24 }}>
+              <h3 style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 20 }}>
+                Personal Details
+              </h3>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Full Name
+                </label>
+                <input
+                  data-testid="patient-name-input"
+                  className="input"
+                  value={patient.name}
+                  onChange={(e) => setPatient((p) => ({ ...p, name: sanitizePersonName(e.target.value) }))}
+                  placeholder="e.g. Anjali Sharma"
+                  autoFocus
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Date of Birth
+                </label>
+                <input
+                  data-testid="patient-dob-input"
+                  className="input"
+                  type="date"
+                  value={patient.dob}
+                  max={new Date().toISOString().split('T')[0]}
+                  onChange={(e) => onDobChange(e.target.value)}
+                />
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Age
+                </label>
+                <input
+                  data-testid="patient-age-input"
+                  className="input"
+                  value={patient.age}
+                  onChange={(e) => setPatient((p) => ({ ...p, age: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="e.g. 74"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Education Level
+                </label>
+                <select
+                  className="input"
+                  value={education}
+                  onChange={(e) => setEducation(e.target.value)}
+                >
+                  <option value="">Select Education Level...</option>
+                  <option value="Primary school">Primary school (Class 1–5)</option>
+                  <option value="Middle school">Middle school (Class 6–8)</option>
+                  <option value="Secondary school">Secondary school (Class 10th / Matric)</option>
+                  <option value="Higher secondary">Higher secondary (Class 12th / HS)</option>
+                  <option value="Graduate / Professional">Graduate / Professional</option>
+                  <option value="Informal / Self-taught">Informal / Self-taught</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(0)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-cta btn-block"
+                data-testid="step-next-btn"
+                disabled={patient.name.trim().length === 0}
+                onClick={() => setStep(2)}
+                style={{ borderRadius: 14, minHeight: 44 }}
+              >
+                Continue
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 2: Clinical Context */}
+        {step === 2 && (
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Clinical context
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 24 }}>
+              Help us tailor games to the right cognitive comfort level.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>
+                Dementia Stage
+              </label>
+              <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+                {(['mild', 'moderate'] as const).map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    className={`btn ${stage === s ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ flex: 1, minHeight: 48, borderRadius: 12 }}
+                    onClick={() => setStage(s)}
+                  >
+                    {s === 'mild' ? 'Mild Stage' : 'Moderate Stage'}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Diagnosis Date (Optional)
+                </label>
+                <input
+                  className="input"
+                  type="date"
+                  value={diagnosisDate}
+                  onChange={(e) => setDiagnosisDate(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Doctor / PHC Contact (Optional)
+                </label>
+                <input
+                  className="input"
+                  value={doctorContact}
+                  onChange={(e) => setDoctorContact(e.target.value)}
+                  placeholder="Doctor Name or Phone"
+                />
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(1)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(3)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Continue
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 3: Home & Culture */}
+        {step === 3 && (
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Home & culture
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 24 }}>
+              Games use local references to trigger positive reminiscence.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  State / Region
+                </label>
+                <select className="input" value={state_} onChange={(e) => setState_(e.target.value)}>
+                  <option value="">Select State</option>
+                  {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Familiar Festivals
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {festivals.concat(FESTIVALS.filter((f) => !festivals.includes(f))).map((f) => {
+                    const isSel = festivals.includes(f)
+                    return (
+                      <button
+                        key={f}
+                        type="button"
+                        className={`chip ${isSel ? 'chip-blue' : ''}`}
+                        onClick={() => toggle(festivals, f, setFestivals)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {isSel ? '✓ ' : '+ '} {f}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <input
+                    className="input"
+                    style={{ flex: 1, minHeight: 44, fontSize: 14 }}
+                    placeholder="Any other festival (e.g. Rongker, Diwali, Eid, Losar…)"
+                    value={customFestival}
+                    onChange={(e) => setCustomFestival(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && customFestival.trim()) {
+                        e.preventDefault()
+                        addCustomFestival()
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ minHeight: 44, padding: '0 16px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}
+                    disabled={!customFestival.trim()}
+                    onClick={addCustomFestival}
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                  Hobbies & Pastimes
+                </label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {hobbies.concat(HOBBIES.filter((h) => !hobbies.includes(h))).map((h) => {
+                    const isSel = hobbies.includes(h)
+                    return (
+                      <button
+                        key={h}
+                        type="button"
+                        className={`chip ${isSel ? 'chip-blue' : ''}`}
+                        onClick={() => toggle(hobbies, h, setHobbies)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {isSel ? '✓ ' : '+ '} {h}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  <input
+                    className="input"
+                    style={{ flex: 1, minHeight: 44, fontSize: 14 }}
+                    placeholder="Any other hobby (e.g. Painting, Birdwatching, Chess…)"
+                    value={customHobby}
+                    onChange={(e) => setCustomHobby(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && customHobby.trim()) {
+                        e.preventDefault()
+                        addCustomHobby()
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ minHeight: 44, padding: '0 16px', fontSize: 14, fontWeight: 600, whiteSpace: 'nowrap' }}
+                    disabled={!customHobby.trim()}
+                    onClick={addCustomHobby}
+                  >
+                    + Add
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(2)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(4)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Continue
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 4: Faces of Home */}
+        {step === 4 && (
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Faces of Home
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 24 }}>
+              Help build a familiar support network for the Faces of Home game.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
+              {familyMembers.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '16px 8px' }}>
+                  <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 16 }}>
+                    No family members added yet. You can add family members now or configure them later in the Caregiver Hub.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    onClick={() => setFamilyMembers([{ name: '', relation: 'Daughter', emoji: '👩' }])}
+                    style={{ borderRadius: 12, padding: '10px 24px', fontWeight: 600 }}
+                  >
+                    + Add Family Member
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {familyMembers.map((fm, i) => (
+                    <div key={i} style={{ marginBottom: 24, paddingBottom: 16, borderBottom: i < familyMembers.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--ink-muted)', textTransform: 'uppercase' }}>
+                          Member #{i + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setFamilyMembers((arr) => arr.filter((_, j) => j !== i))}
+                          style={{ background: 'none', border: 'none', color: '#E53E3E', fontSize: 13, cursor: 'pointer', fontWeight: 600 }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 20 }}>
+                        <div
+                          onClick={() => famFileRefs.current[i]?.click()}
+                          style={{
+                            width: 100,
+                            height: 100,
+                            borderRadius: '50%',
+                            border: '2px dashed var(--ink)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            overflow: 'hidden',
+                            marginBottom: 12,
+                            background: '#F9F8F6',
+                          }}
+                        >
+                          {fm.photo ? (
+                            <img src={fm.photo} alt={fm.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                          ) : (
+                            <Icon name="cameraPlus" size={36} color="var(--ink)" />
+                          )}
+                        </div>
+                        <input
+                          ref={(el) => {
+                            famFileRefs.current[i] = el
+                          }}
+                          type="file"
+                          accept="image/*"
+                          hidden
+                          onChange={(e) => onFamilyPhoto(i, e)}
+                        />
+                        <strong style={{ fontSize: 16, color: 'var(--ink)', marginBottom: 4 }}>Member Photo</strong>
+                        <span style={{ fontSize: 13, color: 'var(--ink-secondary)', maxWidth: 260, marginBottom: 12 }}>
+                          A clear, recognizable face helps with memory recall.
+                        </span>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => famFileRefs.current[i]?.click()}
+                          style={{
+                            background: '#ECECF0',
+                            border: 'none',
+                            borderRadius: 12,
+                            padding: '6px 20px',
+                            fontSize: 14,
+                            fontWeight: 600,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <Icon name="upload" size={16} /> Select Photo
+                        </button>
+                      </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                          FULL NAME
+                        </label>
                         <input
                           className="input"
-                          style={{ minHeight: 48 }}
-                          placeholder="e.g. Sarala, Rahul, Runima"
                           value={fm.name}
-                          onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)))}
+                          onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, name: sanitizePersonName(e.target.value) } : x)))}
+                          placeholder="e.g. Sarala, Rahul, Runima"
+                          style={{ borderRadius: 10, border: '1.5px solid var(--ink)' }}
                         />
                       </div>
-                      <div className="row" style={{ gap: 8 }}>
-                        <div style={{ flex: 1 }}>
-                          <label className="label">Relation</label>
-                          <input
-                            className="input"
-                            style={{ minHeight: 48 }}
-                            placeholder="Daughter, Son, Spouse…"
-                            value={fm.relation}
-                            onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, relation: e.target.value } : x)))}
-                          />
-                        </div>
-                        <div style={{ width: 80 }}>
-                          <label className="label">Avatar</label>
-                          <select
-                            className="input"
-                            style={{ minHeight: 48, padding: '8px' }}
-                            value={fm.emoji}
-                            onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, emoji: e.target.value } : x)))}
-                          >
-                            {['👩', '👨', '👧', '👦', '🧑', '👶', '🧓', '👵', '👴', '🧕'].map((em) => <option key={em}>{em}</option>)}
-                          </select>
-                        </div>
+
+                      <div style={{ marginBottom: 16 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                          RELATIONSHIP
+                        </label>
+                        <select
+                          className="input"
+                          value={fm.relation}
+                          onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, relation: e.target.value } : x)))}
+                          style={{ borderRadius: 10, border: '1.5px solid var(--ink)' }}
+                        >
+                          <option value="">Select relationship...</option>
+                          <option value="Daughter">Daughter</option>
+                          <option value="Son">Son</option>
+                          <option value="Spouse">Spouse</option>
+                          <option value="Sister">Sister</option>
+                          <option value="Brother">Brother</option>
+                          <option value="Grandchild">Grandchild</option>
+                          <option value="Niece">Niece</option>
+                          <option value="Nephew">Nephew</option>
+                          <option value="Friend">Friend</option>
+                        </select>
                       </div>
                     </div>
-                  </div>
+                  ))}
 
-                  <div className="row-between mt-sm" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 8 }}>
-                    <span className="caption">
-                      {fm.photo ? '✅ Photo uploaded' : '📷 Tap photo icon to upload real picture'}
-                    </span>
-                    {familyMembers.length > 1 && (
-                      <button className="btn btn-pearl" style={{ minHeight: 36, color: '#c0392b' }} onClick={() => setFamilyMembers((arr) => arr.filter((_, j) => j !== i))}>
-                        🗑 Remove
-                      </button>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-block"
+                    onClick={() => setFamilyMembers((a) => [...a, { name: '', relation: 'Daughter', emoji: '👩' }])}
+                    style={{ borderRadius: 12 }}
+                  >
+                    + Add Another Family Member
+                  </button>
+                </>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(3)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(5)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Continue
+              </button>
+            </div>
+          </section>
+        )}
+
+        {/* Step 5: Daily Routine */}
+        {step === 5 && (
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Daily routine
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 24 }}>
+              Set daily milestones to schedule gentle medication and exercise reminders.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
+              {[
+                { label: 'Wake up time', key: 'wake' },
+                { label: 'Breakfast time', key: 'breakfast' },
+                { label: 'Lunch time', key: 'lunch' },
+                { label: 'Dinner time', key: 'dinner' },
+                { label: 'Bedtime', key: 'sleep' },
+              ].map((item) => (
+                <div key={item.key} style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                    {item.label}
+                  </label>
+                  <input
+                    className="input"
+                    type="time"
+                    value={routine[item.key as keyof typeof routine]}
+                    onChange={(e) => setRoutine({ ...routine, [item.key]: e.target.value })}
+                  />
                 </div>
               ))}
             </div>
 
-            <button
-              className="btn btn-pearl mt-sm"
-              style={{ alignSelf: 'flex-start' }}
-              onClick={() => setFamilyMembers((a) => [...a, { name: '', relation: '', emoji: '👨' }])}
-            >
-              <Icon name="plus" /> Add another family member
-            </button>
-
-            <NavRow t={t} onBack={() => setStep(3)} onNext={() => setStep(5)} nextEnabled onSpeak={() => speakStep('Add your family members with their names and photos.')} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(4)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(6)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Continue
+              </button>
+            </div>
           </section>
         )}
 
-        {step === 5 && (
-          <section className="stack" style={{ maxWidth: 640, margin: '0 auto' }}>
-            <h1 className="display-lg">{t('onb_routine')}</h1>
-            {(Object.keys(routine) as (keyof typeof routine)[]).map((k) => (
-              <div className="field" key={k}>
-                <label className="label" style={{ textTransform: 'capitalize' }}>{k} time</label>
-                <input className="input" type="time" value={routine[k]} onChange={(e) => setRoutine((r) => ({ ...r, [k]: e.target.value }))} />
-              </div>
-            ))}
-            <NavRow t={t} onBack={() => setStep(4)} onNext={() => setStep(6)} nextEnabled onSpeak={() => speakStep(t('onb_routine'))} />
-          </section>
-        )}
-
+        {/* Step 6: Caregiver Details */}
         {step === 6 && (
-          <section className="stack" style={{ maxWidth: 640, margin: '0 auto' }}>
-            <h1 className="display-lg">{t('onb_caregiver')}</h1>
-            <div className="field">
-              <label className="label">Caregiver name</label>
-              <input className="input" value={caregiver.name} onChange={(e) => setCaregiver((c) => ({ ...c, name: e.target.value }))} />
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 26, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Caregiver details
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 24 }}>
+              Contact information for daily care and emergency coordination.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Caregiver Name
+                </label>
+                <input
+                  className="input"
+                  value={caregiver.name}
+                  onChange={(e) => setCaregiver((c) => ({ ...c, name: sanitizePersonName(e.target.value) }))}
+                  placeholder="Caregiver Name"
+                />
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Phone Number (10 Digits)
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    data-testid="caregiver-country-select"
+                    className="input"
+                    style={{ width: 110, flexShrink: 0 }}
+                    value={caregiverCountry}
+                    onChange={(e) => setCaregiverCountry(e.target.value)}
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.dial}>{c.dial}</option>
+                    ))}
+                  </select>
+                  <input
+                    data-testid="caregiver-phone-input"
+                    className="input"
+                    type="tel"
+                    maxLength={10}
+                    value={caregiver.phone}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                      setCaregiver((c) => ({ ...c, phone: digits }))
+                    }}
+                    placeholder="10-digit mobile number"
+                  />
+                </div>
+                {caregiver.phone.length > 0 && caregiver.phone.length < 10 && (
+                  <p className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
+                    Please enter a valid 10-digit phone number.
+                  </p>
+                )}
+              </div>
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  Relationship to Patient
+                </label>
+                <select
+                  className="input"
+                  value={caregiver.relationship}
+                  onChange={(e) => setCaregiver((c) => ({ ...c, relationship: e.target.value }))}
+                >
+                  <option value="">Select relationship...</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Grandchild">Grandchild</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+
+              <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
+
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  ASHA / Healthcare Worker Name (Optional)
+                </label>
+                <input
+                  data-testid="asha-name-input"
+                  className="input"
+                  value={asha.name}
+                  onChange={(e) => setAsha((a) => ({ ...a, name: sanitizePersonName(e.target.value) }))}
+                  placeholder="ASHA worker name"
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  ASHA Phone Number (Optional)
+                </label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <select
+                    data-testid="asha-country-select"
+                    className="input"
+                    style={{ width: 110, flexShrink: 0 }}
+                    value={ashaCountry}
+                    onChange={(e) => setAshaCountry(e.target.value)}
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.dial}>{c.dial}</option>
+                    ))}
+                  </select>
+                  <input
+                    data-testid="asha-phone-input"
+                    className="input"
+                    type="tel"
+                    maxLength={10}
+                    value={asha.phone}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
+                      setAsha((a) => ({ ...a, phone: digits }))
+                    }}
+                    placeholder="10-digit phone number"
+                  />
+                </div>
+                {asha.phone.length > 0 && asha.phone.length < 10 && (
+                  <p className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
+                    Please enter a valid 10-digit phone number.
+                  </p>
+                )}
+              </div>
             </div>
-            <div className="field">
-              <label className="label">Phone</label>
-              <input className="input" inputMode="tel" value={caregiver.phone} onChange={(e) => setCaregiver((c) => ({ ...c, phone: e.target.value }))} />
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(5)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-cta btn-block"
+                data-testid="step-next-btn"
+                disabled={
+                  caregiver.name.trim().length === 0 ||
+                  caregiver.phone.length !== 10 ||
+                  (asha.phone.length > 0 && asha.phone.length !== 10) ||
+                  !caregiver.relationship
+                }
+                onClick={() => setStep(7)}
+                style={{ borderRadius: 14, minHeight: 44 }}
+              >
+                Continue
+              </button>
             </div>
-            <div className="field">
-              <label className="label">Relationship</label>
-              <select className="input" value={caregiver.relationship} onChange={(e) => setCaregiver((c) => ({ ...c, relationship: e.target.value }))}>
-                <option value="">—</option>
-                {['Son', 'Daughter', 'Spouse', 'Grandchild', 'Neighbour', 'Other'].map((r) => <option key={r}>{r}</option>)}
-              </select>
-            </div>
-            <hr className="divider" />
-            <div className="field">
-              <label className="label">ASHA worker (optional)</label>
-              <input className="input" placeholder="Name" value={asha.name} onChange={(e) => setAsha((a) => ({ ...a, name: e.target.value }))} />
-            </div>
-            <div className="field">
-              <label className="label">ASHA phone</label>
-              <input className="input" inputMode="tel" value={asha.phone} onChange={(e) => setAsha((a) => ({ ...a, phone: e.target.value }))} />
-            </div>
-            <NavRow t={t} onBack={() => setStep(5)} onNext={() => setStep(7)} nextEnabled onSpeak={() => speakStep(t('onb_caregiver'))} />
           </section>
         )}
 
+        {/* Step 7: PIN Setup */}
         {step === 7 && (
-          <section className="stack" style={{ maxWidth: 520, margin: '0 auto', alignItems: 'center', textAlign: 'center' }}>
-            <Icon name="lock" size={54} />
-            <h1 className="display-lg">{t('pin_setup')}</h1>
-            <input
-              className="input"
-              inputMode="numeric"
-              style={{ textAlign: 'center', fontSize: 34, letterSpacing: 14, maxWidth: 260 }}
-              value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
-              placeholder='••••'
-            />
-            <p className="caption">Settings and Caregiver Hub are protected by this PIN. You can also skip and add it later.</p>
-            <NavRow t={t} onBack={() => setStep(6)} onNext={() => setStep(8)} nextEnabled={pin.length === 4 || pin.length === 0} hideSkip onSpeak={() => speakStep(t('pin_setup'))} />
+          <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div
+              style={{
+                width: 56,
+                height: 56,
+                borderRadius: '50%',
+                background: 'var(--primary)',
+                color: '#fff',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Icon name="shield" size={28} color="#fff" />
+            </div>
+
+            <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--ink)', textAlign: 'center', marginBottom: 8 }}>
+              Create a 4-digit caregiver PIN
+            </h1>
+            <p style={{ fontSize: 14, color: 'var(--ink-secondary)', textAlign: 'center', marginBottom: 28 }}>
+              Set and confirm your 4-digit PIN to protect caregiver settings.
+            </p>
+
+            <div className="card" style={{ width: '100%', borderRadius: 24, padding: '24px 20px', marginBottom: 24, textAlign: 'center' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                    PIN
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    className="input"
+                    placeholder="••••"
+                    value={pin}
+                    onFocus={() => setActivePinField('pin')}
+                    onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    style={{
+                      textAlign: 'center',
+                      fontSize: 22,
+                      letterSpacing: 6,
+                      border: activePinField === 'pin' ? '2px solid var(--primary)' : undefined,
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                    Confirm PIN
+                  </label>
+                  <input
+                    type="password"
+                    maxLength={4}
+                    className="input"
+                    placeholder="••••"
+                    value={confirmPin}
+                    onFocus={() => setActivePinField('confirm')}
+                    onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                    style={{
+                      textAlign: 'center',
+                      fontSize: 22,
+                      letterSpacing: 6,
+                      border: activePinField === 'confirm' ? '2px solid var(--primary)' : undefined,
+                    }}
+                  />
+                </div>
+              </div>
+
+              {pin.length === 4 && confirmPin.length === 4 && pin !== confirmPin && (
+                <p className="caption" style={{ color: 'var(--error)', marginBottom: 16, fontWeight: 600 }}>
+                  Passwords do not match.
+                </p>
+              )}
+
+              {/* Numpad */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, maxWidth: 280, margin: '0 auto' }}>
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => (
+                  <button
+                    key={n}
+                    type="button"
+                    className="btn"
+                    onClick={() => {
+                      if (activePinField === 'pin') {
+                        setPin((p) => (p.length < 4 ? p + n : p))
+                      } else {
+                        setConfirmPin((p) => (p.length < 4 ? p + n : p))
+                      }
+                    }}
+                    style={{
+                      background: '#F0F0F3',
+                      borderRadius: 14,
+                      minHeight: 54,
+                      fontSize: 22,
+                      fontWeight: 600,
+                      color: 'var(--ink)',
+                    }}
+                  >
+                    {n}
+                  </button>
+                ))}
+                <div />
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    if (activePinField === 'pin') {
+                      setPin((p) => (p.length < 4 ? p + '0' : p))
+                    } else {
+                      setConfirmPin((p) => (p.length < 4 ? p + '0' : p))
+                    }
+                  }}
+                  style={{
+                    background: '#F0F0F3',
+                    borderRadius: 14,
+                    minHeight: 54,
+                    fontSize: 22,
+                    fontWeight: 600,
+                    color: 'var(--ink)',
+                  }}
+                >
+                  0
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => {
+                    if (activePinField === 'pin') {
+                      setPin((p) => p.slice(0, -1))
+                    } else {
+                      setConfirmPin((p) => p.slice(0, -1))
+                    }
+                  }}
+                  style={{
+                    background: '#F0F0F3',
+                    borderRadius: 14,
+                    minHeight: 54,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Icon name="backspace" size={22} color="var(--ink)" />
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
+              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(6)} style={{ borderRadius: 14, minHeight: 44 }}>
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn btn-cta btn-block"
+                data-testid="step-next-btn"
+                disabled={pin.length > 0 && (pin.length < 4 || confirmPin !== pin)}
+                onClick={() => setStep(8)}
+                style={{ borderRadius: 14, minHeight: 44 }}
+              >
+                {pin.length === 4 && confirmPin === pin ? 'Continue' : 'Skip & Finish'}
+              </button>
+            </div>
           </section>
         )}
 
+        {/* Step 8: Baseline Assessment */}
         {step === 8 && (
           <BaselineAssessment
             t={t}
@@ -468,42 +1128,12 @@ export function Onboarding() {
   )
 }
 
-function NavRow({
-  t, onBack, onNext, nextEnabled = true, onSpeak, hideSkip = false,
-}: {
-  t: (k: string) => string
-  onBack: () => void
-  onNext: () => void
-  nextEnabled?: boolean
-  onSpeak: () => void
-  hideSkip?: boolean
-}) {
-  return (
-    <div className="sticky-cta">
-      <div className="row-between" style={{ width: '100%' }}>
-        <div className="row">
-          <button className="btn btn-secondary" onClick={onBack}>← {t('back')}</button>
-          <button className="icon-btn" aria-label={t('listen')} onClick={onSpeak}>
-            <Icon name="speaker" />
-          </button>
-        </div>
-        <div className="row">
-          {!hideSkip && (
-            <button className="btn btn-pearl" onClick={() => { stopSpeaking(); onNext() }}>
-              {t('skip')}
-            </button>
-          )}
-          <button className="btn btn-primary" data-testid="step-next-btn" disabled={!nextEnabled} onClick={() => { stopSpeaking(); onNext() }}>
-            {t('next')} →
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 function BaselineAssessment({
-  t, lang, familyMembers, onFinish, onBack,
+  t,
+  lang,
+  familyMembers,
+  onFinish,
+  onBack,
 }: {
   t: (k: string) => string
   lang: Language
@@ -514,188 +1144,118 @@ function BaselineAssessment({
   const [round, setRound] = useState(0)
   const [correct, setCorrect] = useState(0)
   const [latencies, setLatencies] = useState<number[]>([])
+  const [done, setDone] = useState(false)
   const startTs = useRef(Date.now())
 
   useEffect(() => {
     startTs.current = Date.now()
-    void speak(t('onb_baseline_sub'), lang)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [round])
 
-  // Use patient's actual family members if provided!
-  const faces = useMemo(() => {
-    if (familyMembers.length > 0) {
-      return familyMembers.slice(0, 2).map((fm) => ({
-        emoji: fm.emoji || '👩',
-        photo: fm.photo,
-        relation: fm.relation,
-        names: [fm.name, 'Kavita', 'Sunil'],
-        correctIdx: 0,
-      }))
-    }
-    return [
-      { emoji: '👩', photo: undefined, relation: 'Daughter', names: ['Runima', 'Sarala', 'Bhanu'], correctIdx: 1 },
-      { emoji: '👴', photo: undefined, relation: 'Son', names: ['Deben', 'Pradip', 'Kamal'], correctIdx: 0 },
-    ]
-  }, [familyMembers])
+  const questions = [
+    { prompt: 'Tap the Morning Sun ☀️', instruction: 'Listen to the sound and identify the melody', options: ['🌙', '☀️', '⭐'], answer: 1 },
+    { prompt: 'Tap the Tea Leaf 🍃', instruction: 'Recall the sequence of daily tasks', options: ['🍃', '🍎', '🐟'], answer: 0 },
+    { prompt: 'Tap the Flower 🌸', instruction: 'Match the colors of the memory garden', options: ['🚗', '🌸', '🏠'], answer: 1 },
+  ]
 
-  const melodiesRounds = useMemo(() => [
-    { inst: 'dhol' as const, options: [{ label: '🪘 Bihu Dhol', isRight: true }, { label: '🔔 Temple Bell', isRight: false }, { label: '📯 Pepa Horn', isRight: false }] },
-    { inst: 'flute' as const, options: [{ label: '🪘 Bihu Dhol', isRight: false }, { label: '🪈 Bahi Flute', isRight: true }, { label: '🥁 Wangala Drum', isRight: false }] },
-  ], [])
+  const q = questions[round] ?? questions[0]
 
-  const seqRounds = useMemo(() => [
-    { items: ['🍵', '🫖', '🔥'], correctOrder: [2, 1, 0], labels: ['Tea', 'Kettle', 'Stove'] },
-  ], [])
+  const handlePick = (idx: number) => {
+    const lat = Date.now() - startTs.current
+    const isCorrect = idx === q.answer
+    playChime()
+    const nextCorrect = correct + (isCorrect ? 1 : 0)
+    const nextLatencies = [...latencies, lat]
 
-  const roundsTotal = faces.length + melodiesRounds.length + seqRounds.length
-
-  function record(isCorrect: boolean) {
-    setLatencies((l) => [...l, Date.now() - startTs.current])
-    if (isCorrect) setCorrect((c) => c + 1)
-    void playChime()
-    setTimeout(() => {
-      startTs.current = Date.now()
+    if (round < questions.length - 1) {
+      setCorrect(nextCorrect)
+      setLatencies(nextLatencies)
       setRound((r) => r + 1)
-    }, 900)
+    } else {
+      setDone(true)
+      const avgLat = nextLatencies.reduce((a, b) => a + b, 0) / nextLatencies.length
+      const acc = nextCorrect / questions.length
+      setCorrect(nextCorrect)
+      setLatencies(nextLatencies)
+    }
   }
 
-  if (round >= roundsTotal) {
-    const accuracy = correct / roundsTotal
-    const avgLatency = latencies.reduce((a, b) => a + b, 0) / Math.max(latencies.length, 1)
-    return (
-      <section className="center-col" style={{ maxWidth: 620, margin: '0 auto' }}>
-        <div className="praise-stars">🌟</div>
-        <h1 className="display-lg">{t('praise_title')}</h1>
-        <p className="lead">Smriti Sathi has learned a comfortable starting level for you.</p>
-        <button className="btn btn-primary btn-big mt-lg" onClick={() => onFinish({ accuracy, latencyMs: avgLatency })}>
-          {t('done')} 🌺
-        </button>
-      </section>
-    )
+  const handleComplete = () => {
+    const avgLat = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 800
+    const acc = correct / questions.length
+    onFinish({ accuracy: acc, latencyMs: avgLat })
   }
 
-  if (round < faces.length) {
-    const r = faces[round]
-    return (
-      <div className="center-col" style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
-        <RoundHeader now={round + 1} total={roundsTotal} />
-        <InstructionBarLite text={t('g_faces_intro')} t={t} lang={lang} />
-        <div className="card card-dark center-col" style={{ padding: 'var(--s-lg)', width: 220, height: 220, borderRadius: 'var(--r-xl)', justifyContent: 'center' }}>
-          {r.photo ? (
-            <img src={r.photo} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 'var(--r-lg)' }} />
-          ) : (
-            <span style={{ fontSize: 96 }}>{r.emoji}</span>
-          )}
-          {r.relation && <span className="caption" style={{ color: '#ccc', marginTop: 6 }}>{r.relation}</span>}
-        </div>
-        <div className="row mt-lg" style={{ justifyContent: 'center', gap: 'var(--s-md)' }}>
-          {r.names.map((n, i) => (
-            <button key={n} className="choice-btn" onClick={() => record(i === r.correctIdx)} style={{ minWidth: 150 }}>
-              <span style={{ fontSize: 'var(--fs-body-lg)' }}>{n}</span>
-            </button>
-          ))}
-        </div>
-        <button className="btn btn-pearl mt-lg" onClick={onBack}>← {t('back')}</button>
-      </div>
-    )
-  }
-
-  if (round < faces.length + melodiesRounds.length) {
-    const r = melodiesRounds[round - faces.length]
-    return (
-      <div className="center-col" style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
-        <RoundHeader now={round + 1} total={roundsTotal} />
-        <InstructionBarLite text={t('g_melodies_intro')} t={t} lang={lang} />
-        <button className="btn btn-primary btn-big mt-md" onClick={() => playInstrument(r.inst)}>
-          ▶ {t('listen')}
-        </button>
-        <div className="row mt-lg" style={{ justifyContent: 'center', gap: 'var(--s-md)' }}>
-          {r.options.map((opt, i) => (
-            <button key={i} className="choice-btn" onClick={() => record(opt.isRight)} style={{ minWidth: 160 }}>
-              <span style={{ fontSize: 'var(--fs-body-lg)' }}>{opt.label}</span>
-            </button>
-          ))}
-        </div>
-        <button className="btn btn-pearl mt-lg" onClick={onBack}>← {t('back')}</button>
-      </div>
-    )
-  }
-
-  const sr = seqRounds[0]
   return (
-    <SequenceBaseline
-      now={round + 1}
-      total={roundsTotal}
-      prompt={t('g_sequence_intro')}
-      items={sr.items}
-      labels={sr.labels}
-      correctOrder={sr.correctOrder}
-      onDone={(okCount) => record(okCount === sr.items.length)}
-      t={t}
-      onBack={onBack}
-      lang={lang}
-    />
-  )
-}
+    <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+        Quick Orientation
+      </h1>
 
-function SequenceBaseline({
-  now, total, prompt, items, labels, correctOrder, onDone, t, onBack, lang,
-}: {
-  now: number
-  total: number
-  prompt: string
-  items: string[]
-  labels: string[]
-  correctOrder: number[]
-  onDone: (okCount: number) => void
-  t: (k: string) => string
-  onBack: () => void
-  lang: Language
-}) {
-  const [placed, setPlaced] = useState<number[]>([])
-  return (
-    <section className="center-col" style={{ maxWidth: 720, margin: '0 auto', width: '100%' }}>
-      <RoundHeader now={now} total={total} />
-      <InstructionBarLite text={prompt} t={t} lang={lang} />
-      <div className="row mt-md" style={{ justifyContent: 'center' }}>
-        {items.map((it, i) => (
-          <div key={i} className={`slot ${placed[i] !== undefined ? 'filled' : ''}`}>
-            {placed[i] !== undefined ? `${items[placed[i]]} ${labels[placed[i]]}` : `Step ${i + 1}`}
-          </div>
-        ))}
+      <div
+        className="instruction-bar"
+        style={{
+          background: '#D0EBD8',
+          color: '#155724',
+          fontSize: 13,
+          fontWeight: 600,
+          padding: '8px 16px',
+          borderRadius: 12,
+          marginBottom: 16,
+          display: 'inline-block',
+          border: '1px solid #9FD4B4',
+        }}
+      >
+        {q.instruction}
       </div>
-      <div className="row mt-md" style={{ justifyContent: 'center' }}>
-        {items.map((it, itemIdx) =>
-          placed.includes(itemIdx) ? null : (
+
+      <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 24 }}>
+        Round {round + 1} of {questions.length}
+      </p>
+
+      <div className="card" style={{ width: '100%', borderRadius: 24, padding: 32, marginBottom: 24 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', marginBottom: 28 }}>
+          {q.prompt}
+        </h2>
+
+        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: done ? 24 : 0 }}>
+          {q.options.map((opt, i) => (
             <button
-              key={itemIdx}
-              className="item-tile"
-              onClick={() => {
-                const next = [...placed, itemIdx]
-                setPlaced(next)
-                if (next.length === items.length) {
-                  const oks = next.filter((ii, slot) => correctOrder[slot] === ii).length
-                  setTimeout(() => onDone(oks), 800)
-                }
+              key={i}
+              type="button"
+              className="btn btn-secondary choice-btn item-tile"
+              onClick={() => handlePick(i)}
+              style={{
+                width: 80,
+                height: 80,
+                fontSize: 36,
+                borderRadius: 20,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+                cursor: 'pointer',
               }}
             >
-              <span className="big">{it}</span>
-              <span>{labels[itemIdx]}</span>
+              {opt}
             </button>
-          )
+          ))}
+        </div>
+
+        {done && (
+          <button
+            type="button"
+            className="btn btn-cta btn-block"
+            onClick={handleComplete}
+            style={{ borderRadius: 14, minHeight: 48, marginTop: 12 }}
+          >
+            Done
+          </button>
         )}
       </div>
-      <button className="btn btn-pearl mt-lg" onClick={onBack}>← {t('back')}</button>
-    </section>
-  )
-}
 
-export function InstructionBarLite({ text, t, lang }: { text: string; t: (k: string) => string; lang: Language }) {
-  return (
-    <div className="instruction-bar" style={{ borderRadius: 'var(--r-pill)', border: '1px solid var(--hairline)', position: 'static', width: '100%', maxWidth: 640 }}>
-      <p>{text}</p>
-      <SpeakerButton text={text} lang={lang} />
-    </div>
+      <button type="button" className="btn btn-secondary btn-block" onClick={onBack} style={{ borderRadius: 14, minHeight: 44 }}>
+        Back
+      </button>
+    </section>
   )
 }

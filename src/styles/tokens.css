@@ -1,118 +1,147 @@
 :root {
-  /* Northeast Indian Handloom Textile Palette */
-  --primary: #9e2224; /* Rongali Madder Red (Assamese Gamosa / Mekhela Chador) */
-  --primary-focus: #b82a2d;
-  --primary-hover: #861a1c;
-  --primary-on-dark: #ff8587;
+  /* ── Brand Colors ── */
+  --primary: #162436;        /* Dark Navy */
+  --primary-light: #253950;
+  --primary-focus: #1d3049;
+  --secondary: #9E2224;      /* Deep Red */
+  --secondary-hover: #b82a2d;
+  --secondary-light: #fdf2f2;
+  --tertiary: #312006;       /* Dark Brown */
+  --neutral: #777778;        /* Gray */
 
-  /* Traditional Accent Colors */
-  --muga-gold: #c98e34; /* Assam Muga Wild Silk Golden Thread */
-  --muga-gold-light: #f5e4be;
-  --muga-gold-glow: rgba(201, 142, 52, 0.35);
-  --indigo-deep: #162436; /* Majuli Natural Hand-Dyed Indigo */
-  --indigo-mid: #253950;
-  --tea-green: #235c3e; /* Assam Tea Garden Green */
-  --tea-green-soft: #eaf4ed;
-  --terracotta: #b85433; /* Traditional Red Clay Pottery */
+  /* ── Semantic Colors (Richer, slightly darker pastels) ── */
+  --success: #2D7A4F;
+  --success-soft: #D0EBD8;
+  --success-text: #155724;
+  --warn: #C08000;
+  --warn-soft: #FDE8B5;
+  --error: #D32F2F;
+  --error-soft: #FBD5D5;
+  --info: #1976D2;
+  --info-soft: #CCE5FB;
 
-  /* Neutral Handloom & Fabric Tones */
-  --ink: #1f1b18; /* Deep Warm Charcoal */
-  --body-c: #26211c;
-  --body-on-dark: #fbf8f2;
-  --body-muted-dark: #d2c8bc;
-  --ink-muted-80: #423b34;
-  --ink-muted-48: #786e64;
+  /* ── Rich Pastel Color Families ── */
+  --pastel-blue: #C8E5F6;
+  --pastel-blue-border: #92CCE8;
+  --pastel-blue-text: #0B4A72;
+  --pastel-green: #C9ECCF;
+  --pastel-green-border: #91D79B;
+  --pastel-green-text: #175B28;
+  --pastel-yellow: #FDE5A6;
+  --pastel-yellow-border: #F6CD5E;
+  --pastel-yellow-text: #674402;
+  --pastel-pink: #FBD0D6;
+  --pastel-pink-border: #F19EA9;
+  --pastel-pink-text: #781520;
+  --pastel-purple: #DED2F4;
+  --pastel-purple-border: #B79FE6;
+  --pastel-purple-text: #3D2372;
+  --pastel-teal: #BFE9E4;
+  --pastel-teal-border: #7CD0C7;
+  --pastel-teal-text: #07544D;
+  --pastel-peach: #FCD5C0;
+  --pastel-peach-border: #F6A980;
+  --pastel-peach-text: #772F04;
 
-  /* Fabric Backgrounds (Light & Textured) */
-  --canvas: #fbf8f2; /* Raw Cotton / Eri Silk Handloom Canvas */
-  --canvas-alt: #f7f2e7;
-  --parchment: #f4ece0; /* Muga Silk Soft Gold Hue */
-  --pearl: #fffdf9; /* Ivory Woven Silk */
-  --divider-soft: rgba(201, 142, 52, 0.22);
-  --hairline: rgba(158, 34, 36, 0.16);
-  --hairline-gold: rgba(201, 142, 52, 0.35);
+  /* ── Surface & Background ── */
+  --canvas: #FBF8F2;         /* Warm cream background (EXACTLY UNCHANGED) */
+  --card: #FFFFFF;            /* White cards */
+  --card-elevated: #FFFFFF;
+  --surface-muted: #EBE3D4;  /* Richer warm sand/cream for panels & sections */
+  --overlay: rgba(22, 36, 54, 0.6);
 
-  /* Dark Indigo Fabric Surfaces */
-  --tile-1: #182535; /* Indigo Handloom Dark Card */
-  --tile-2: #213247;
-  --tile-3: #141f2c;
-  --black: #111822;
+  /* ── Text ── */
+  --ink: #1A1A1A;
+  --ink-secondary: #4A4A4A;
+  --ink-muted: #6B6B6D;
+  --ink-faint: #999999;
+  --ink-on-dark: #FFFFFF;
+  --ink-on-primary: #FFFFFF;
+  --ink-on-secondary: #FFFFFF;
 
-  --chip-translucent: rgba(244, 236, 224, 0.85);
-  --on-primary: #fffdf9;
+  /* ── Borders & Dividers (More defined) ── */
+  --border: #DDD5C7;
+  --border-light: #E7DFCFA;
+  --border-focus: #162436;
+  --divider: #DFD7C9;
 
-  --success: #235c3e;
-  --success-soft: #edf6f0;
-  --warn: #9e6406;
-  --warn-soft: #fcf4e3;
+  /* ── Typography ── */
+  --font-display: "Outfit", system-ui, -apple-system, sans-serif;
+  --font-text: "Inter", system-ui, -apple-system, sans-serif;
 
-  /* Typography */
-  --font-display: "Outfit", "Rozha One", system-ui, -apple-system, sans-serif;
-  --font-heading-folk: "Rozha One", "Outfit", serif;
-  --font-text: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  /* ── Font Sizes (responsive with clamp) ── */
+  --fs-hero: clamp(28px, 4.5vw, 38px);
+  --fs-display: clamp(24px, 3.5vw, 32px);
+  --fs-title: clamp(20px, 2.5vw, 24px);
+  --fs-subtitle: clamp(17px, 2vw, 20px);
+  --fs-body: clamp(15px, 1.5vw, 17px);
+  --fs-body-sm: clamp(14px, 1.3vw, 15px);
+  --fs-caption: clamp(12px, 1.1vw, 13px);
+  --fs-label: clamp(11px, 1vw, 12px);
 
-  /* Radii & Geometry (Handcrafted Soft Curves) */
-  --r-none: 0px;
-  --r-xs: 6px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 20px;
-  --r-xl: 28px;
+  /* ── Radii ── */
+  --r-xs: 4px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
+  --r-2xl: 24px;
   --r-pill: 9999px;
 
-  /* Spacing */
-  --s-xxs: 4px;
-  --s-xs: 8px;
-  --s-sm: 12px;
-  --s-md: 18px;
-  --s-lg: 26px;
-  --s-xl: 34px;
-  --s-xxl: 50px;
-  --s-section: clamp(40px, 7vw, 84px);
+  /* ── Spacing ── */
+  --s-xxs: 2px;
+  --s-xs: 4px;
+  --s-sm: 8px;
+  --s-md: 12px;
+  --s-lg: 16px;
+  --s-xl: 20px;
+  --s-2xl: 24px;
+  --s-3xl: 32px;
+  --s-4xl: 40px;
+  --s-5xl: 48px;
 
-  /* Shadows (Warm & Textile-Embossed) */
-  --shadow-product: 0 10px 30px -4px rgba(60, 40, 20, 0.12), 0 4px 12px -2px rgba(60, 40, 20, 0.08);
-  --shadow-card: 0 4px 20px rgba(70, 45, 20, 0.07);
-  --shadow-glow-red: 0 6px 20px rgba(158, 34, 36, 0.28);
-  --shadow-glow-gold: 0 6px 20px rgba(201, 142, 52, 0.3);
-  --hairline-ring: 1.5px solid var(--hairline);
+  /* ── Shadows ── */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.10);
 
-  /* Font Sizes */
-  --fs-hero: clamp(34px, 5.4vw, 56px);
-  --fs-display-lg: clamp(28px, 4.2vw, 40px);
-  --fs-display-md: clamp(24px, 3.4vw, 34px);
-  --fs-title: clamp(21px, 2.6vw, 28px);
-  --fs-tagline: clamp(19px, 2.2vw, 23px);
-  --fs-body-lg: clamp(19px, 2vw, 22px);
-  --fs-body: clamp(18px, 1.7vw, 20px);
-  --fs-caption: clamp(14px, 1.4vw, 16px);
-
-  /* Handloom Fabric Weave Textures (pure CSS threads, offline-safe) */
-  --tex-weave-light:
-    linear-gradient(0deg, rgba(160, 115, 75, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(160, 115, 75, 0.05) 1px, transparent 1px),
-    radial-gradient(rgba(180, 130, 70, 0.05) 0.8px, transparent 1px);
-  --tex-size-weave: 5px 5px, 5px 5px, 15px 15px;
-  --tex-weave-red:
-    linear-gradient(0deg, rgba(255, 244, 224, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56, 8, 9, 0.12) 1px, transparent 1px);
-  --tex-size-weave-btn: 4px 4px;
-  --tex-sheen-red: linear-gradient(135deg, rgba(255, 235, 200, 0.16) 0%, rgba(255, 255, 255, 0) 42%, rgba(56, 8, 9, 0.14) 100%);
-
-  --nav-h: 58px;
+  /* ── Safe Area Insets (Device Notch / Dynamic Island / Home Indicator) ── */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+
+  /* ── Header & Navigation Dimensions ── */
+  --nav-h: 56px;
+  --tabbar-h: 64px;
+
+  /* ── Device Adaptive Clearance (Dynamic Island / Notch / Gesture Pill) ── */
+  /* Guarantees no interactive element or heading collides with iPhone Dynamic Island, punch holes, or status bar */
+  --top-clearance: max(calc(var(--safe-top) + 20px), 48px);
+  --header-top-pad: max(var(--safe-top), 14px);
+  --bottom-clearance: max(calc(var(--safe-bottom) + 24px), 36px);
+  --side-clearance: max(var(--s-lg), var(--safe-left));
+  --min-touch-target: 48px;
+
+  /* ── Fluid Max Widths ── */
+  --max-w: 480px;
+  --container-max-w: 520px;
 }
 
-@media (min-width: 1441px) {
+/* Tablet & iPad Viewports */
+@media (min-width: 640px) {
   :root {
-    --fs-hero: 64px;
-    --fs-display-lg: 48px;
-    --fs-display-md: 38px;
-    --fs-title: 30px;
-    --fs-tagline: 25px;
-    --fs-body-lg: 23px;
-    --fs-body: 21px;
-    --fs-caption: 17px;
+    --max-w: 580px;
+    --container-max-w: 620px;
+  }
+}
+
+/* Large Tablets & Desktop/Laptops */
+@media (min-width: 1024px) {
+  :root {
+    --max-w: 640px;
+    --container-max-w: 700px;
   }
 }

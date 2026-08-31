@@ -1,13 +1,22 @@
 import type {
-  Profile, Med, MedLogEntry, SessionRecord, LedgerEvent, GardenState,
+  Profile, Med, MedLogEntry, SessionRecord, LedgerEvent,
   ArmState, SrtItem, ClinicalConfig, AppAlert,
+  DailyReminder, AppointmentReminder,
 } from './types'
 import { DEFAULT_CONFIG } from './types'
 
 const DB_NAME = 'smriti-sathi'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 let dbPromise: Promise<IDBDatabase> | null = null
+
+export const DEFAULT_DAILY_REMINDERS: DailyReminder[] = [
+  { id: 'rem-water', title: 'Drink water', description: 'Stay hydrated with a fresh glass of water', time: '09:00', enabled: true, category: 'hydration' },
+  { id: 'rem-breakfast', title: 'Eat breakfast', description: 'Enjoy a nourishing morning meal', time: '08:00', enabled: true, category: 'meal' },
+  { id: 'rem-walk', title: 'Go for a walk', description: 'A gentle walk in the fresh air', time: '10:30', enabled: true, category: 'activity' },
+  { id: 'rem-rest', title: 'Take a rest', description: 'Relax quietly and rest your mind and body', time: '14:00', enabled: true, category: 'rest' },
+  { id: 'rem-family', title: 'Call family', description: 'Spend a moment connecting with loved ones', time: '17:30', enabled: true, category: 'general' },
+]
 
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise
@@ -28,6 +37,8 @@ function openDb(): Promise<IDBDatabase> {
         s.createIndex('ts', 'ts')
         s.createIndex('medId', 'medId')
       }
+      if (!db.objectStoreNames.contains('daily_reminders')) db.createObjectStore('daily_reminders', { keyPath: 'id' })
+      if (!db.objectStoreNames.contains('appointments')) db.createObjectStore('appointments', { keyPath: 'id' })
     }
     req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
@@ -111,15 +122,31 @@ export async function loadSrt(): Promise<Record<string, SrtItem>> {
 }
 export const saveSrt = (s: Record<string, SrtItem>) => dbSet('kv', s, 'srt')
 
-export async function loadGarden(): Promise<GardenState> {
+export async function loadDailyReminders(): Promise<DailyReminder[]> {
   try {
-    const g = await dbGet<GardenState>('kv', 'garden')
-    return g ?? { points: 0, plantedFlowers: 0, wateredDates: [], history: [] }
+    const list = await dbAll<DailyReminder>('daily_reminders')
+    if (list && list.length > 0) return list
+    // Initialize defaults if empty
+    for (const item of DEFAULT_DAILY_REMINDERS) {
+      await dbSet('daily_reminders', item, item.id)
+    }
+    return DEFAULT_DAILY_REMINDERS
   } catch {
-    return { points: 0, plantedFlowers: 0, wateredDates: [], history: [] }
+    return DEFAULT_DAILY_REMINDERS
   }
 }
-export const saveGarden = (g: GardenState) => dbSet('kv', g, 'garden')
+export const saveDailyReminder = (r: DailyReminder) => dbSet('daily_reminders', r, r.id)
+export const deleteDailyReminder = (id: string) => dbDel('daily_reminders', id)
+
+export async function loadAppointments(): Promise<AppointmentReminder[]> {
+  try {
+    return (await dbAll<AppointmentReminder>('appointments')) ?? []
+  } catch {
+    return []
+  }
+}
+export const saveAppointment = (a: AppointmentReminder) => dbSet('appointments', a, a.id)
+export const deleteAppointment = (id: string) => dbDel('appointments', id)
 
 export const addEvent = (e: Omit<LedgerEvent, 'ts'> & { ts?: number }) =>
   dbAdd('events', { ts: e.ts ?? Date.now(), kind: e.kind, gameId: e.gameId, data: e.data }).catch(() => {})
@@ -151,10 +178,11 @@ export const wipeAll = () =>
   openDb().then(
     (db) =>
       new Promise<void>((resolve, reject) => {
-        const names = ['kv', 'events', 'sessions', 'meds', 'medlog']
+        const names = ['kv', 'events', 'sessions', 'meds', 'medlog', 'daily_reminders', 'appointments']
         const t = db.transaction(names, 'readwrite')
         names.forEach((n) => t.objectStore(n).clear())
         t.oncomplete = () => resolve()
         t.onerror = () => reject(t.error)
       })
   )
+

@@ -1,0 +1,33 @@
+{
+  "failures": [
+    {
+      "bugId": "BUG-001",
+      "testName": "Playwright Cross-Browser & Mobile E2E",
+      "errorMessage": "\n> smriti-sathi@0.1.0 test:e2e\n> playwright test\n\n\nRunning 66 tests using 7 workers\n\n  ✓   1 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:9:3 › Garden & Medication Management E2E Suite › displays orchid garden bloom status and points progress (3.0s)\n  ✓   5 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:19:3 › Garden & Medication Management E2E Suite › displays medicine list and allows confirming doses (4.0s)\n  ✓   2 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:9:3 › Home Dashboard & Navigation E2E Suite › renders home screen with greeting, daily recommended game, and game grid (4.1s)\n  ✓   7 [Desktop Chromium] › test/e2e/games.spec.ts:31:3 › Cognitive Game Engines E2E Suite › plays Morning Melodies instrument recognition game (4.3s)\n  ✓   3 [Desktop Chromium] › test/e2e/games.spec.ts:48:3 › Cognitive Game Engines E2E Suite › plays Daily Life Sequence game ordering steps (4.4s)\n  ✓   8 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:24:3 › Home Dashboard & Naviga",
+      "probableRootCause": "E2E interaction, navigation, or timing issue",
+      "recordedAt": "2026-08-26T15:46:30.506Z"
+    },
+    {
+      "bugId": "BUG-002",
+      "testName": "Playwright Cross-Browser & Mobile E2E",
+      "errorMessage": "\n> smriti-sathi@0.1.0 test:e2e\n> playwright test\n\n\nRunning 66 tests using 7 workers\n\n  ✓   4 [Desktop Chromium] › test/e2e/games.spec.ts:31:3 › Cognitive Game Engines E2E Suite › plays Morning Melodies instrument recognition game (3.2s)\n  ✓   7 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:9:3 › Home Dashboard & Navigation E2E Suite › renders home screen with greeting, daily recommended game, and game grid (3.3s)\n  ✓   3 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:9:3 › Garden & Medication Management E2E Suite › displays orchid garden bloom status and points progress (3.5s)\n  ✓   6 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:19:3 › Garden & Medication Management E2E Suite › displays medicine list and allows confirming doses (4.5s)\n  ✓   8 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:24:3 › Home Dashboard & Navigation E2E Suite › navigates across primary tabs (Home -> Garden -> Meds -> Caregiver Hub) (1.3s)\n  ✓   1 [Desktop Chromium] › test/e2e/games.spec.ts",
+      "probableRootCause": "E2E interaction, navigation, or timing issue",
+      "recordedAt": "2026-08-26T15:48:33.461Z"
+    },
+    {
+      "bugId": "BUG-003",
+      "testName": "Playwright Cross-Browser & Mobile E2E",
+      "errorMessage": "\n> smriti-sathi@0.1.0 test:e2e\n> playwright test\n\n\nRunning 66 tests using 7 workers\n\n  ✓   6 [Desktop Chromium] › test/e2e/games.spec.ts:48:3 › Cognitive Game Engines E2E Suite › plays Daily Life Sequence game ordering steps (16.1s)\n  ✓   4 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:9:3 › Garden & Medication Management E2E Suite › displays orchid garden bloom status and points progress (16.2s)\n  ✓   1 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:9:3 › Home Dashboard & Navigation E2E Suite › renders home screen with greeting, daily recommended game, and game grid (16.0s)\n  ✓   7 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:19:3 › Garden & Medication Management E2E Suite › displays medicine list and allows confirming doses (16.3s)\n  ✓   5 [Desktop Chromium] › test/e2e/games.spec.ts:31:3 › Cognitive Game Engines E2E Suite › plays Morning Melodies instrument recognition game (17.6s)\n  ✓   2 [Desktop Chromium] › test/e2e/caregiver-hub.spec.ts:9:3 › Caregiver Hub Securit",
+      "probableRootCause": "E2E interaction, navigation, or timing issue",
+      "recordedAt": "2026-08-26T17:04:03.288Z"
+    },
+    {
+      "bugId": "BUG-004",
+      "testName": "Playwright Cross-Browser & Mobile E2E",
+      "errorMessage": "\n> smriti-sathi@0.1.0 test:e2e\n> playwright test\n\n\nRunning 66 tests using 7 workers\n\n  ✓   2 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:9:3 › Garden & Medication Management E2E Suite › displays orchid garden bloom status and points progress (5.7s)\n  ✓   7 [Desktop Chromium] › test/e2e/home-navigation.spec.ts:9:3 › Home Dashboard & Navigation E2E Suite › renders home screen with greeting, daily recommended game, and game grid (10.7s)\n  ✓   4 [Desktop Chromium] › test/e2e/garden-meds.spec.ts:19:3 › Garden & Medication Management E2E Suite › displays medicine list and allows confirming doses (10.6s)\n  ✓   3 [Desktop Chromium] › test/e2e/games.spec.ts:31:3 › Cognitive Game Engines E2E Suite › plays Morning Melodies instrument recognition game (10.9s)\n  ✓   5 [Desktop Chromium] › test/e2e/games.spec.ts:48:3 › Cognitive Game Engines E2E Suite › plays Daily Life Sequence game ordering steps (11.7s)\n  ✓   6 [Desktop Chromium] › test/e2e/caregiver-hub.spec.ts:9:3 › Caregiver Hub Security",
+      "probableRootCause": "E2E interaction, navigation, or timing issue",
+      "recordedAt": "2026-08-26T17:06:31.739Z"
+    }
+  ],
+  "resolved": []
+}

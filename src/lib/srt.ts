@@ -19,17 +19,24 @@ export function gapFor(item: SrtItem): number {
 }
 
 export function scheduleRound<T>(items: T[], gapOf: (item: T, index: number) => number): T[] {
+  if (items.length === 0) return []
   const order: T[] = []
-  const nextDue = items.map((_, i) => 0)
+  const nextDue = items.map(() => 0)
   let turn = 0
-  while (order.length < items.length * 2 + 8 && turn < 200) {
+  const maxRounds = items.length * 2 + 4
+  while (order.length < maxRounds && turn < 100) {
+    let scheduledAny = false
     for (let i = 0; i < items.length; i++) {
-      if (nextDue[i] <= turn && !order.includes(items[i])) {
-        void gapOf(items[i], i)
+      if (nextDue[i] <= turn) {
         order.push(items[i])
+        const gap = gapOf(items[i], i)
+        nextDue[i] = turn + gap + 1
+        turn++
+        scheduledAny = true
+        if (order.length >= maxRounds) break
       }
     }
-    turn++
+    if (!scheduledAny) turn++
   }
   return order
 }

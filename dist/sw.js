@@ -1,4 +1,4 @@
-const CACHE = 'smriti-sathi-v1'
+const CACHE = 'smriti-sathi-no-voice-v2'
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png']
 
 self.addEventListener('install', (event) => {

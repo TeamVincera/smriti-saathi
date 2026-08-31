@@ -1,39 +1,49 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { shuffle, RoundHeader } from './shared'
+import { RoundHeader } from './shared'
+import { sessionRng } from '../lib/rng'
+import { genSafariScene } from '../lib/content'
+import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playChime, playSoftCue } from '../lib/audio'
 
-const ANIMALS = ['🦏', '🐘', '🦚', '🦌', '🐅']
-const FOREST = ['🌳', '🌿', '🍃', '🪨', '🌾']
+const DOMAIN = 'visualsearch'
+const TOTAL_SCENES = 2
 
-export function WildlifeSafari({ difficulty, logAction, complete }: GameProps) {
-  const size = difficulty >= 1 ? 20 : 12
-  const targetCount = difficulty >= 1 ? 4 : 3
-
-  const cells = useMemo(() => {
-    const animals = shuffle(ANIMALS).slice(0, targetCount)
-    const arr: string[] = []
-    for (let i = 0; i < targetCount; i++) arr.push(animals[i])
-    while (arr.length < size) arr.push(FOREST[Math.floor(Math.random() * FOREST.length)])
-    return shuffle(arr.map((v, i) => ({ v, i })))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
+export function WildlifeSafari({ logAction, complete }: GameProps) {
+  const rng = useRef(sessionRng('safari')).current
+  const [sceneIdx, setSceneIdx] = useState(0)
+  const [level, setLevel] = useState(() => nextLevel(DOMAIN))
+  const scene = useMemo(() => genSafariScene(rng, level), [rng, level, sceneIdx])
   const [found, setFound] = useState<string[]>([])
   const [glowCell, setGlowCell] = useState<number | null>(null)
+  const strayTapsThisScene = useRef(0)
+  const unpromptedTotal = useRef(0)
+  const totalTargets = useRef(0)
+
+  const targetCount = scene.targets.length
+
+  useEffect(() => {
+    totalTargets.current += scene.targets.length
+  }, [scene])
 
   useEffect(() => {
     if (found.length >= targetCount) return
-    const remaining = cells.filter((c) => ANIMALS.includes(c.v) && !found.includes(c.v))
+    const remaining = scene.cells.filter((c) => scene.targets.includes(c.v) && !found.includes(c.v))
     if (remaining.length === 0) return
-    const t = setTimeout(() => setGlowCell(remaining[0].i), 7000)
+    const t = setTimeout(() => setGlowCell(remaining[0].i), 7000 + level * 500)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found])
 
+  const [wrongCell, setWrongCell] = useState<number | null>(null)
+
   function tap(v: string, i: number) {
-    if (!ANIMALS.includes(v)) {
+    if (!scene.targets.includes(v)) {
+      strayTapsThisScene.current++
+      logAction('cued')
       playSoftCue()
+      setWrongCell(i)
+      setTimeout(() => setWrongCell(null), 550)
       return
     }
     if (found.includes(v)) return
@@ -42,27 +52,46 @@ export function WildlifeSafari({ difficulty, logAction, complete }: GameProps) {
     setGlowCell(null)
     void playChime()
     logAction('unprompted')
+    unpromptedTotal.current++
     if (next.length >= targetCount) {
-      setTimeout(() => complete({ itemsTotal: targetCount, itemsUnprompted: targetCount, completion: 1 }), 800)
+      recordAnswer(DOMAIN, level, strayTapsThisScene.current <= 1)
+      setTimeout(() => {
+        if (sceneIdx + 1 < TOTAL_SCENES) {
+          setLevel(nextLevel(DOMAIN))
+          setSceneIdx((s) => s + 1)
+          setFound([])
+          strayTapsThisScene.current = 0
+        } else {
+          const total = Math.max(totalTargets.current, 1)
+          complete({
+            itemsTotal: total,
+            itemsUnprompted: Math.min(unpromptedTotal.current, total),
+            completion: 1,
+          })
+        }
+      }, 800)
     }
   }
 
-  const cols = size > 12 ? 5 : 4
-
   return (
     <div className="center-col" style={{ width: '100%' }}>
-      <RoundHeader now={found.length} total={targetCount} unit="step" label={`🦏 ${found.length} / ${targetCount} animals found`} />
-      <div className="row" style={{ marginTop: 'var(--s-xs)' }}>
-        {ANIMALS.slice(0, targetCount).map((a) => (
-          <span key={a} className="chip chip-selected" style={{ fontSize: 24 }}>
-            {found.includes(a) ? `${a} ✅` : a}
+      <RoundHeader now={sceneIdx + 1} total={TOTAL_SCENES} unit="round" label={`🌿 ${scene.sceneName}`} />
+      <div className="row mt-xs" style={{ gap: 8 }}>
+        {scene.targets.map((t) => (
+          <span key={t} className={`chip ${found.includes(t) ? 'chip-found' : ''}`} style={{ fontSize: 24, padding: '4px 12px' }}>
+            {t}
           </span>
         ))}
       </div>
-      <p className="lead mt-xs">Find all hidden animals in Kaziranga forest!</p>
-      <div className="search-scene mt-sm" style={{ gridTemplateColumns: `repeat(${cols}, minmax(64px, 96px))` }}>
-        {cells.map((c) => (
-          <button key={c.i} className={`scene-cell ${found.includes(c.v) ? 'found' : ''}`} style={glowCell === c.i ? { animation: 'pulseGentle 1.2s infinite' } : undefined} onClick={() => tap(c.v, c.i)}>
+      <p className="lead mt-xs">Find all hidden animals in the {scene.sceneName.toLowerCase()}!</p>
+      <div className="search-scene mt-sm" style={{ gridTemplateColumns: `repeat(${scene.cols}, minmax(64px, 96px))` }}>
+        {scene.cells.map((c) => (
+          <button
+            key={c.i}
+            className={`scene-cell ${found.includes(c.v) ? 'found' : ''} ${wrongCell === c.i ? 'wrong' : ''}`}
+            style={glowCell === c.i ? { animation: 'pulseGentle 1.2s infinite' } : undefined}
+            onClick={() => tap(c.v, c.i)}
+          >
             {c.v}
           </button>
         ))}

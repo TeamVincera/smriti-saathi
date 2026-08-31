@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
 import { RoundHeader } from './shared'
-import { speak } from '../lib/speech'
 
 const FLOWERS = ['🌺', '🌸', '🏵️', '🌼', '🪷']
 
@@ -26,10 +25,8 @@ export function MemoryGardenGame({ logAction, complete }: GameProps) {
   useEffect(() => {
     if (phase === 'breathe' && breathCount >= 4) {
       setPhase('water')
-      void speak('Beautiful. Now let us water the orchids.', 'en')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [breathCount])
+  }, [phase, breathCount])
 
   useEffect(() => {
     if (!doneRef.current && phase === 'water' && watered.length >= flowers.length) {
@@ -73,7 +70,6 @@ export function MemoryGardenGame({ logAction, complete }: GameProps) {
                 onClick={() => {
                   if (watered.includes(i)) return
                   setWatered((w) => [...w, i])
-                  void speak('The garden smiles at you.', 'en')
                 }}
               >
                 <span className={watered.includes(i) ? '' : 'cue-target'} style={{ display: 'inline-block', filter: watered.includes(i) ? 'none' : 'grayscale(0.5) saturate(0.7)' }}>

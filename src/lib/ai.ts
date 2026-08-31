@@ -2,9 +2,27 @@ import type { SessionRecord, ClinicalConfig } from './types'
 import { GAMES, unlockedGames, PHASE_UNLOCK_SESSIONS, gameById } from './games'
 import { buildContext } from './sathi'
 import { computeReward, newArm, pickArm, shermanMorrisonUpdate } from './linucb'
-import { loadBandit, saveBandit, getSessions, loadConfig, addEvent, addSession } from './db'
+import { loadBandit, saveBandit, getSessions, loadConfig, addEvent, addSession, loadProfile } from './db'
+import { DOMAIN_BY_GAME, MAX_LEVEL, getAbility } from './adaptive'
+import { AIService } from './ai/AIService'
+import { PatientContextBuilder } from './ai/PatientContextBuilder'
+
+export { AIService, PatientContextBuilder }
+export * from './ai/AIService'
+export * from './ai/PatientContextBuilder'
 
 const DIFFICULTIES = [0, 1]
+
+// Session-level starting difficulty informed by the per-domain ability model:
+// a patient whose answers have pushed their abilities up begins sessions on
+// the harder arm instead of re-learning from zero.
+export function startingLevelFor(gameId: string): number {
+  const domain = DOMAIN_BY_GAME[gameId]
+  if (!domain) return 0
+  const { theta, n } = getAbility(domain)
+  if (n < 4) return 0
+  return theta >= MAX_LEVEL - 1 ? 1 : 0
+}
 
 function armCandidates(completed: number): { id: string; gameId: string; difficulty: number; phase: number }[] {
   const games = unlockedGames(completed)
@@ -30,11 +48,31 @@ export async function setAdherenceRate(v: number) {
 }
 
 export async function recommendNextGame(): Promise<{ gameId: string; difficulty: number; exploration: boolean } | null> {
-  const [sessions, bandit, config] = await Promise.all([getSessions(), loadBandit(), loadConfig()])
+  const [sessions, bandit, config, profile] = await Promise.all([getSessions(), loadBandit(), loadConfig(), loadProfile()])
   const completed = sessions.length
   let candidates = armCandidates(completed)
   if (candidates.length === 0) return null
 
+  // 1. Try Online AI Recommendation via Groq if available
+  try {
+    const context = PatientContextBuilder.build({ profile, sessions })
+    const unlocked = unlockedGames(completed)
+    const onlineRecommendation = await AIService.recommendAdaptiveGame(sessions, unlocked, context)
+    if (onlineRecommendation) {
+      void addEvent({
+        kind: 'session_start',
+        gameId: onlineRecommendation.gameId,
+        data: { difficulty: onlineRecommendation.difficulty, source: 'groq_ai', reason: onlineRecommendation.reason },
+      })
+      return {
+        gameId: onlineRecommendation.gameId,
+        difficulty: onlineRecommendation.difficulty,
+        exploration: false,
+      }
+    }
+  } catch {}
+
+  // 2. Offline / Fallback LinUCB Contextual Bandit Engine
   if (completed === 0) {
     try {
       const raw = localStorage.getItem('ss_baseline')
@@ -54,8 +92,13 @@ export async function recommendNextGame(): Promise<{ gameId: string; difficulty:
   const novelShare = recent.length ? recent.filter((s) => s.exploration).length / recent.length : 0
   const pick = pickArm(bandit, candidates.map((c) => c.id), ctx.x, config.alpha, novelShare)
   if (!pick) return null
-  const chosen = candidates.find((c) => c.id === pick.armId)!
-  void addEvent({ kind: 'session_start', gameId: chosen.gameId, data: { difficulty: chosen.difficulty, exploration: pick.exploration, bucket: ctx.hourBucket } })
+  let chosen = candidates.find((c) => c.id === pick.armId)!
+  if (completed === 0 && chosen.difficulty === 0) {
+    // Warm-start: if baseline abilities are already high, open on the richer arm.
+    const stronger = candidates.find((c) => c.gameId === chosen.gameId && c.difficulty === 1 && startingLevelFor(chosen.gameId) === 1)
+    if (stronger) chosen = stronger
+  }
+  void addEvent({ kind: 'session_start', gameId: chosen.gameId, data: { difficulty: chosen.difficulty, exploration: pick.exploration, bucket: ctx.hourBucket, source: 'local_bandit' } })
   return { gameId: chosen.gameId, difficulty: chosen.difficulty, exploration: pick.exploration }
 }
 

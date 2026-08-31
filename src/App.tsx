@@ -7,12 +7,14 @@ import { startReminderEngine } from './lib/reminders'
 import { Onboarding } from './screens/Onboarding'
 import { Home } from './screens/Home'
 import { GameScreen } from './games/GameHost'
-import { Garden } from './screens/Garden'
+import { Reminders } from './screens/Reminders'
 import { Meds } from './screens/Meds'
 import { CaregiverHub } from './screens/CaregiverHub'
 
+import { AIChatbot } from './components/AIChatbot'
+
 export default function App() {
-  const { ready, profile, lang, sessionsToday, refreshSessions } = useApp()
+  const { ready, profile, lang } = useApp()
   const { path } = useHashRoute()
 
   useEffect(() => {
@@ -25,16 +27,9 @@ export default function App() {
   useEffect(() => {
     if (!ready || !profile?.onboarded) return
     const known =
-      path === '/' || path === '/garden' || path === '/meds' || path === '/hub' || path.startsWith('/game/')
+      path === '/' || path === '/reminders' || path === '/meds' || path === '/hub' || path.startsWith('/game/')
     if (!known) navigate('/')
   }, [ready, profile?.onboarded, path])
-
-  useEffect(() => {
-    if (!path.startsWith('/game/') && !path.includes('session')) {
-      void refreshSessions()
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionsToday])
 
   if (!ready) {
     return (
@@ -48,7 +43,7 @@ export default function App() {
 
   const isGame = path.startsWith('/game/')
   let screen = <Home />
-  if (path === '/garden') screen = <Garden />
+  if (path === '/reminders') screen = <Reminders />
   else if (path === '/meds') screen = <Meds />
   else if (path === '/hub') screen = <CaregiverHub />
   else if (isGame) screen = <GameScreen />
@@ -56,6 +51,7 @@ export default function App() {
   return (
     <Layout hideNav={isGame}>
       {screen}
+      {!isGame && <AIChatbot />}
       <ReminderOverlay />
     </Layout>
   )

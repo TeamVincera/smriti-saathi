@@ -1,0 +1,24 @@
+{
+  "status": "VERIFIED",
+  "iterations": 11,
+  "maxIterations": 10,
+  "lastRunAt": "2026-08-26T17:06:41.540Z",
+  "summary": {
+    "typecheck": "PASSED",
+    "unit": "PASSED",
+    "integration": "PASSED",
+    "e2e": "PASSED",
+    "browsers": [
+      "Chromium",
+      "Firefox",
+      "WebKit"
+    ],
+    "devices": [
+      "Desktop",
+      "iPhone 14",
+      "iPad Pro 11",
+      "Pixel 7"
+    ]
+  },
+  "history": []
+}
