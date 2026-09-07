@@ -25,3 +25,9 @@ test-results/
 coverage/
 playwright-report/
 blob-report/
+
+# Local test scratch & keys
+test-keys*.js
+test-puter.js
+test_file.txt
+.freebuff/

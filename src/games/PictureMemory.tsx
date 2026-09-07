@@ -143,7 +143,7 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    background: '#fff',
+                    background: 'var(--card)',
                     padding: 'var(--s-sm) var(--s-md)',
                     borderRadius: 'var(--r-md)',
                     border: '1.5px solid rgba(158, 34, 36, 0.15)',

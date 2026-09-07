@@ -15,8 +15,17 @@ export function useHashRoute(): { path: string; query: URLSearchParams } {
   return route
 }
 
-export function navigate(path: string) {
-  if (window.location.hash === `#${path}`) return
-  window.location.hash = path
+export function navigate(path: string, keepQuery = false) {
+  let targetPath = path
+  if (keepQuery) {
+    const currentHash = window.location.hash.replace(/^#/, '')
+    const [, q] = currentHash.split('?')
+    if (q) {
+      targetPath = path.includes('?') ? `${path}&${q}` : `${path}?${q}`
+    }
+  }
+
+  if (window.location.hash === `#${targetPath}`) return
+  window.location.hash = targetPath
   window.scrollTo(0, 0)
 }

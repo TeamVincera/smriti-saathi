@@ -30,7 +30,7 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
         setGlowText(round.phrase.correctCompletion)
         playSoftCue()
       }
-    }, 7000)
+    }, 4000)
 
     return () => {
       clearTimeout(glowTimer)

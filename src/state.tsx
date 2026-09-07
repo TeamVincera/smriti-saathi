@@ -34,6 +34,8 @@ interface AppState {
   refreshSessions: () => Promise<void>
   resetAllData: () => Promise<void>
   sessionsToday: number
+  theme: 'light' | 'dark'
+  setTheme: (theme: 'light' | 'dark') => Promise<void>
 }
 
 const Ctx = createContext<AppState | null>(null)
@@ -46,6 +48,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [appointments, setAppointments] = useState<AppointmentReminder[]>([])
   const [dailyGameLimit, setDailyGameLimitState] = useState(3)
   const [sessions, setSessions] = useState<SessionRecord[]>([])
+  const [theme, setThemeState] = useState<'light' | 'dark'>('light')
+
+  // Apply the active theme to <html> and the browser chrome color
+  const applyTheme = useCallback((t: 'light' | 'dark') => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.setAttribute('data-theme', t)
+      const meta = document.querySelector('meta[name="theme-color"]')
+      if (meta) meta.setAttribute('content', t === 'dark' ? '#10161F' : '#FBF8F2')
+    }
+  }, [])
 
   useEffect(() => {
     ;(async () => {
@@ -62,12 +74,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setDailyReminders(r)
       setAppointments(a)
       setDailyGameLimitState(cfg.maxSessionsPerDay ?? 3)
+      const savedTheme: 'light' | 'dark' = cfg.theme === 'dark' ? 'dark' : 'light'
+      setThemeState(savedTheme)
+      applyTheme(savedTheme)
       setSessions(s.sort((x, y) => x.startedAt - y.startedAt))
       await ensureAbilities()
       setReady(true)
       void addEvent({ kind: 'app_open' })
     })()
-  }, [])
+  }, [applyTheme])
 
   const t = useCallback(
     (key: string, vars?: Record<string, string | number>) => translate(profile?.language ?? 'en', key, vars),
@@ -82,7 +97,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateProfile = useCallback(async (patch: Partial<Profile>) => {
     setProfileState((prev) => {
       if (!prev) return prev
-      const next = { ...prev, ...patch }
+      const next: Profile = {
+        ...prev,
+        ...patch,
+        patient: { ...prev.patient, ...(patch.patient || {}) },
+        clinical: { ...prev.clinical, ...(patch.clinical || {}) },
+        cultural: { ...prev.cultural, ...(patch.cultural || {}) },
+        routine: { ...prev.routine, ...(patch.routine || {}) },
+        caregiver: { ...prev.caregiver, ...(patch.caregiver || {}) },
+      }
       void dbSaveProfile(next)
       return next
     })
@@ -136,6 +159,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setSessions(s.sort((a, b) => a.startedAt - b.startedAt))
   }, [])
 
+  const setTheme = useCallback(
+    async (t: 'light' | 'dark') => {
+      setThemeState(t)
+      applyTheme(t)
+      try {
+        localStorage.setItem('smriti-theme', t)
+      } catch {}
+      const cfg = await loadConfig()
+      await saveConfig({ ...cfg, theme: t })
+    },
+    [applyTheme]
+  )
+
   const resetAllData = useCallback(async () => {
     try {
       localStorage.clear()
@@ -173,6 +209,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     ready, profile, meds, dailyReminders, appointments, dailyGameLimit, sessions, t, lang: profile?.language ?? 'en',
     setProfile, updateProfile, upsertMed, removeMed, upsertDailyReminder, removeDailyReminder,
     upsertAppointment, removeAppointment, setDailyGameLimit, updateDailyGameLimit: setDailyGameLimit, refreshSessions, resetAllData, sessionsToday,
+    theme, setTheme,
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

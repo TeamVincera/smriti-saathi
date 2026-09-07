@@ -118,7 +118,10 @@ export function GameScreen() {
         setTimeout(() => setGlow(false), 1600)
       }
     }, 1200)
-    return () => clearInterval(iv)
+    return () => {
+      clearInterval(iv)
+      stopAllAudio()
+    }
   }, [finished])
 
   const logAction = useCallback((kind: 'unprompted' | 'cued') => {
@@ -194,34 +197,39 @@ export function GameScreen() {
   const instruction = t(game.instructionKey)
   const GameComponent = GAME_COMPONENTS[gameId]
 
-  const speakInstruction = () => {
+  const speakInstruction = useCallback(() => {
+    if (!instruction) return
     void VoiceService.speak(instruction, { language: lang })
-  }
+  }, [instruction, lang])
+
+  useEffect(() => {
+    speakInstruction()
+  }, [speakInstruction])
 
   return (
     <div className="page page-full" onPointerDown={onTap}>
       <div className="instruction-bar row-between" style={{ borderRadius: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-sm)', flex: 1, minWidth: 0 }}>
           <button className="icon-btn" aria-label={t('back')} onClick={() => {
-            VoiceService.stop()
+            stopAllAudio()
             navigate('/')
           }}>
             <Icon name="back" />
           </button>
-          <p style={{ margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 600 }}>
-            {instruction}
-          </p>
+          <h2 style={{ fontFamily: 'var(--font-display)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>
+            {game ? (lang === 'hi' && game.nameHi ? game.nameHi : game.name) : instruction}
+          </h2>
         </div>
 
         {/* Speak Instruction Button */}
         <button
           type="button"
           className="icon-btn"
-          aria-label="Listen to instructions"
+          aria-label={t('listen')}
           onClick={speakInstruction}
-          style={{ width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
         >
-          <Icon name="volume" size={20} />
+          <Icon name="volume" size={22} color="var(--primary)" />
         </button>
       </div>
 
@@ -293,20 +301,18 @@ function PraiseCeremony({
     <div className="praise-overlay" role="dialog" aria-label={t('praise_title')}>
       <div className="praise-stars">🌟🌺🌟</div>
       <h2 className="display-lg" style={{ color: '#fff' }}>{t('praise_title')}</h2>
-      <p className="lead" style={{ color: '#ccc', maxWidth: 560 }}>{t('praise_body')}</p>
+      <p className="lead" style={{ color: 'var(--ink-muted)', maxWidth: 560 }}>{t('praise_body')}</p>
       <p className="lead" style={{ color: '#fff' }}>{didWell}</p>
       <div className="row" style={{ gap: 'var(--s-md)', marginTop: 'var(--s-lg)' }}>
         <button
-          className="btn btn-primary btn-big"
-          onClick={() => {
-            VoiceService.stop()
+          className="btn btn-primary btn-big"          onClick={() => {
+            stopAllAudio()
             navigate('/')
-          }}
-        >
+          }}>
           {t('nav_home')}
         </button>
       </div>
-      <p className="caption" style={{ color: '#aaa', marginTop: 'var(--s-xl)' }}>
+      <p className="caption" style={{ color: 'var(--ink-muted)', marginTop: 'var(--s-xl)' }}>
         {patientName} · {gameName}
       </p>
     </div>

@@ -30,7 +30,7 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
     if (found.length >= targetCount) return
     const remaining = scene.cells.filter((c) => scene.targets.includes(c.v) && !found.includes(c.v))
     if (remaining.length === 0) return
-    const t = setTimeout(() => setGlowCell(remaining[0].i), 7000 + level * 500)
+    const t = setTimeout(() => setGlowCell(remaining[0].i), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found])

@@ -1,74 +1,30 @@
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useState } from 'react'
 import { useApp } from '../state'
 import { subscribeReminders, confirmAlarm, snoozeAlarm, type ActiveAlarm } from '../lib/reminders'
 import { VoiceService } from '../lib/voice'
 import { Icon } from '../components/Icons'
 
 export function ReminderOverlay() {
-  const { lang, profile } = useApp()
+  const { lang, profile, t } = useApp()
   const [alarm, setAlarm] = useState<ActiveAlarm | null>(null)
-  const [slideX, setSlideX] = useState(0)
-  const [isDragging, setIsDragging] = useState(false)
-  const sliderTrackRef = useRef<HTMLDivElement>(null)
-  const startXRef = useRef(0)
 
   useEffect(() => {
     return subscribeReminders((newAlarm) => {
       setAlarm(newAlarm)
       if (newAlarm) {
-        // Speak announcement aloud gently
-        const prompt =
-          newAlarm.type === 'med'
-            ? lang === 'hi'
-              ? `दवा का समय हो गया है। ${newAlarm.title}`
-              : `It is time to take your medicine, ${newAlarm.title}.`
-            : newAlarm.type === 'appointment'
-            ? lang === 'hi'
-              ? `डॉक्टर की अपॉइंटमेंट का समय है। ${newAlarm.title}`
-              : `Your doctor appointment is coming up, ${newAlarm.title}.`
-            : lang === 'hi'
-            ? `दैनिक याद। ${newAlarm.title}`
-            : `Here is your reminder, ${newAlarm.title}.`
-
-        void VoiceService.speak(prompt, { language: lang })
-      } else {
-        VoiceService.stop()
+        const spoken = `${newAlarm.title}. ${newAlarm.subtitle || ''}`
+        void VoiceService.speak(spoken, { language: lang })
       }
     })
   }, [lang])
 
   if (!alarm) return null
 
-  const handlePointerDown = (e: ReactPointerEvent<HTMLDivElement>) => {
-    setIsDragging(true)
-    startXRef.current = e.clientX
-    ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-  }
-
-  const handlePointerMove = (e: ReactPointerEvent<HTMLDivElement>) => {
-    if (!isDragging || !sliderTrackRef.current) return
-    const trackWidth = sliderTrackRef.current.clientWidth - 68
-    const delta = Math.max(0, Math.min(trackWidth, e.clientX - startXRef.current))
-    setSlideX(delta)
-
-    if (trackWidth > 0 && delta >= trackWidth * 0.82) {
-      setIsDragging(false)
-      setSlideX(0)
-      void confirmAlarm(alarm, 'slide')
-    }
-  }
-
-  const handlePointerUp = () => {
-    if (!isDragging) return
-    setIsDragging(false)
-    setSlideX(0)
-  }
-
-  const typeLabels: Record<string, { en: string; hi: string; color: string }> = {
-    med: { en: 'MEDICINE REMINDER', hi: 'दवा का समय', color: '#FF5F56' },
-    daily: { en: 'DAILY REMINDER', hi: 'दैनिक याद', color: '#2D7A4F' },
-    appointment: { en: 'DOCTOR APPOINTMENT', hi: 'डॉक्टर की अपॉइंटमेंट', color: '#1B6CA8' },
-    routine: { en: 'DAILY ROUTINE', hi: 'दैनिक दिनचर्या', color: '#8A5D2C' },
+  const typeLabels: Record<string, { label: string; color: string }> = {
+    med: { label: t('reminder_time'), color: '#FF5F56' },
+    daily: { label: t('nav_reminders'), color: 'var(--success)' },
+    appointment: { label: 'Appointment', color: 'var(--info)' },
+    routine: { label: 'Routine', color: 'var(--warn)' },
   }
 
   const typeBadge = typeLabels[alarm.type] ?? typeLabels.daily
@@ -108,7 +64,7 @@ export function ReminderOverlay() {
             borderRadius: 20,
           }}
         >
-          🔔 {lang === 'hi' ? typeBadge.hi : typeBadge.en}
+          🔔 {typeBadge.label}
         </span>
         <span style={{ fontSize: 24, fontWeight: 700, color: 'var(--muga-gold-light)', marginTop: 4 }}>
           {alarm.time}
@@ -183,7 +139,7 @@ export function ReminderOverlay() {
             className="chip"
             style={{
               background: 'rgba(255, 255, 255, 0.08)',
-              color: '#CCD4E0',
+              color: 'var(--ink-muted)',
               fontSize: 14,
               fontWeight: 500,
               padding: '6px 14px',
@@ -194,103 +150,51 @@ export function ReminderOverlay() {
         )}
       </div>
 
-      {/* Bottom Controls: Slide to Stop & Snooze */}
-      <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 14, alignItems: 'center' }}>
-        {/* Slide To Stop Track */}
-        <div
-          ref={sliderTrackRef}
+      {/* Bottom Tremor-Friendly Controls: 96px Round Button + Snooze */}
+      <div style={{ width: '100%', maxWidth: 380, display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center' }}>
+        {/* Large 96px Green Action Target */}
+        <button
+          type="button"
+          onClick={() => void confirmAlarm(alarm, 'tap')}
           style={{
-            width: '100%',
-            height: 68,
-            borderRadius: 34,
-            background: 'rgba(255, 255, 255, 0.12)',
-            border: '2px solid rgba(255, 255, 255, 0.25)',
-            position: 'relative',
+            width: 96,
+            height: 96,
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2D7A4F 0%, #1E5637 100%)',
+            boxShadow: '0 6px 24px rgba(45, 122, 79, 0.45)',
+            border: '3px solid rgba(255,255,255,0.3)',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            overflow: 'hidden',
-            userSelect: 'none',
-            touchAction: 'none',
+            cursor: 'pointer',
+            transition: 'transform 0.15s ease',
+          }}
+          aria-label={t('taken_btn')}
+        >
+          <Icon name="check" size={36} color="#FFFFFF" />
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#FFFFFF', marginTop: 2 }}>
+            {t('taken_btn')}
+          </span>
+        </button>
+
+        {/* Generous Snooze Button */}
+        <button
+          type="button"
+          className="btn btn-block"
+          onClick={() => void snoozeAlarm(alarm)}
+          style={{
+            minHeight: 52,
+            borderRadius: 16,
+            fontSize: 15,
+            fontWeight: 600,
+            background: 'rgba(255, 255, 255, 0.12)',
+            color: '#fff',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
           }}
         >
-          <span
-            style={{
-              fontSize: 15,
-              fontWeight: 700,
-              letterSpacing: 0.5,
-              color: 'rgba(255, 255, 255, 0.75)',
-              pointerEvents: 'none',
-              paddingLeft: 36,
-            }}
-          >
-            {lang === 'hi' ? 'रोकने के लिए सरकाएं →' : 'Slide to Stop →'}
-          </span>
-
-          {/* Draggable Slider Thumb */}
-          <div
-            onPointerDown={handlePointerDown}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
-            style={{
-              position: 'absolute',
-              left: 4,
-              transform: `translateX(${slideX}px)`,
-              width: 58,
-              height: 58,
-              borderRadius: '50%',
-              background: 'linear-gradient(135deg, #2D7A4F 0%, #1E5637 100%)',
-              boxShadow: '0 4px 14px rgba(0,0,0,0.35)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'grab',
-              transition: isDragging ? 'none' : 'transform 0.25s ease',
-            }}
-          >
-            <Icon name="check" size={28} color="#fff" />
-          </div>
-        </div>
-
-        {/* Buttons Row: Tap to Complete & Snooze */}
-        <div style={{ display: 'flex', gap: 12, width: '100%' }}>
-          <button
-            type="button"
-            className="btn btn-secondary btn-block"
-            onClick={() => void snoozeAlarm(alarm)}
-            style={{
-              flex: 1,
-              minHeight: 48,
-              borderRadius: 16,
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'rgba(255, 255, 255, 0.1)',
-              color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-            }}
-          >
-            ⏰ {lang === 'hi' ? '10 मिनट बाद (स्नूज़)' : 'Snooze 10m'}
-          </button>
-
-          <button
-            type="button"
-            className="btn btn-block"
-            onClick={() => void confirmAlarm(alarm, 'tap')}
-            style={{
-              flex: 1,
-              minHeight: 48,
-              borderRadius: 16,
-              fontSize: 14,
-              fontWeight: 600,
-              background: 'var(--success)',
-              color: '#fff',
-              border: 'none',
-            }}
-          >
-            ✓ {lang === 'hi' ? 'पूर्ण हुआ' : 'Done'}
-          </button>
-        </div>
+          ⏰ {t('snooze_btn')}
+        </button>
       </div>
     </div>
   )

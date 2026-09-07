@@ -102,16 +102,22 @@ export async function confirmAlarm(alarm: ActiveAlarm, method: 'slide' | 'tap' =
     void addEvent({ kind: 'reminder_completed', data: { reminderId: alarm.id, type: alarm.type, method } })
   }
   try {
+    localStorage.setItem(`done:${alarm.key}`, String(Date.now()))
     sessionStorage.setItem(`done:${alarm.key}`, String(Date.now()))
-  } catch {}
+  } catch (err) {
+    console.error(`[Reminders] Failed to set storage done:${alarm.key}`, err)
+  }
   emit(null)
 }
 
 export async function snoozeAlarm(alarm: ActiveAlarm) {
   stopAlarmSound()
   try {
+    localStorage.setItem(`snooze:${alarm.key}`, String(Date.now() + SNOOZE_MS))
     sessionStorage.setItem(`snooze:${alarm.key}`, String(Date.now() + SNOOZE_MS))
-  } catch {}
+  } catch (err) {
+    console.error(`[Reminders] Failed to set storage snooze:${alarm.key}`, err)
+  }
   void addEvent({ kind: 'reminder_dismissed', data: { reminderId: alarm.id, reason: 'snooze' } })
   emit(null)
 }
@@ -119,6 +125,14 @@ export async function snoozeAlarm(alarm: ActiveAlarm) {
 export async function dismissAlarm() {
   stopAlarmSound()
   emit(null)
+}
+
+function getStorageVal(key: string): string | null {
+  try {
+    return localStorage.getItem(key) || sessionStorage.getItem(key)
+  } catch {
+    return null
+  }
 }
 
 export function startReminderEngine(getLang: () => Language) {
@@ -133,7 +147,6 @@ export function startReminderEngine(getLang: () => Language) {
       const dstr = dateStrOf(nowObj)
       const curHour = String(nowObj.getHours()).padStart(2, '0')
       const curMin = String(nowObj.getMinutes()).padStart(2, '0')
-      const curTime = `${curHour}:${curMin}`
 
       // 1. Check Active Medicines
       const meds = (await getMeds()).filter((m) => m.active)
@@ -148,9 +161,11 @@ export function startReminderEngine(getLang: () => Language) {
               let snoozedUntil = 0
               let isDone = false
               try {
-                snoozedUntil = parseInt(sessionStorage.getItem(`snooze:${key}`) ?? '0', 10)
-                isDone = !!sessionStorage.getItem(`done:${key}`)
-              } catch {}
+                snoozedUntil = parseInt(getStorageVal(`snooze:${key}`) ?? '0', 10)
+                isDone = !!getStorageVal(`done:${key}`)
+              } catch (err) {
+                console.warn(`[Reminders] Failed to read storage for ${key}`, err)
+              }
               if (!isDone && now >= snoozedUntil) {
                 emit({
                   id: med.id,
@@ -176,7 +191,7 @@ export function startReminderEngine(getLang: () => Language) {
       }
 
       // 2. Check Daily Reminders
-      const dailyReminders = (await loadDailyReminders()).filter((r) => r.active)
+      const dailyReminders = (await loadDailyReminders()).filter((r) => r.active ?? r.enabled ?? true)
       for (const reminder of dailyReminders) {
         const ts = schedTs(dstr, reminder.time)
         const key = `daily:${reminder.id}|${ts}`
@@ -184,9 +199,11 @@ export function startReminderEngine(getLang: () => Language) {
           let snoozedUntil = 0
           let isDone = false
           try {
-            snoozedUntil = parseInt(sessionStorage.getItem(`snooze:${key}`) ?? '0', 10)
-            isDone = !!sessionStorage.getItem(`done:${key}`)
-          } catch {}
+            snoozedUntil = parseInt(getStorageVal(`snooze:${key}`) ?? '0', 10)
+            isDone = !!getStorageVal(`done:${key}`)
+          } catch (err) {
+            console.warn(`[Reminders] Failed to read storage for ${key}`, err)
+          }
           if (!isDone && now >= snoozedUntil) {
             emit({
               id: reminder.id,
@@ -203,7 +220,7 @@ export function startReminderEngine(getLang: () => Language) {
       }
 
       // 3. Check Appointments
-      const appointments = (await loadAppointments()).filter((a) => a.active && a.date === dstr)
+      const appointments = (await loadAppointments()).filter((a) => (a.active ?? a.enabled ?? true) && a.date === dstr)
       for (const appt of appointments) {
         const ts = schedTs(dstr, appt.time)
         const key = `appt:${appt.id}|${ts}`
@@ -211,9 +228,11 @@ export function startReminderEngine(getLang: () => Language) {
           let snoozedUntil = 0
           let isDone = false
           try {
-            snoozedUntil = parseInt(sessionStorage.getItem(`snooze:${key}`) ?? '0', 10)
-            isDone = !!sessionStorage.getItem(`done:${key}`)
-          } catch {}
+            snoozedUntil = parseInt(getStorageVal(`snooze:${key}`) ?? '0', 10)
+            isDone = !!getStorageVal(`done:${key}`)
+          } catch (err) {
+            console.warn(`[Reminders] Failed to read storage for ${key}`, err)
+          }
           if (!isDone && now >= snoozedUntil) {
             emit({
               id: appt.id,
@@ -252,9 +271,11 @@ export function startReminderEngine(getLang: () => Language) {
               let snoozedUntil = 0
               let isDone = false
               try {
-                snoozedUntil = parseInt(sessionStorage.getItem(`snooze:${key}`) ?? '0', 10)
-                isDone = !!sessionStorage.getItem(`done:${key}`)
-              } catch {}
+                snoozedUntil = parseInt(getStorageVal(`snooze:${key}`) ?? '0', 10)
+                isDone = !!getStorageVal(`done:${key}`)
+              } catch (err) {
+                console.warn(`[Reminders] Failed to read storage for ${key}`, err)
+              }
               if (!isDone && now >= snoozedUntil) {
                 emit({
                   id: `routine-${item.key}`,
@@ -272,7 +293,9 @@ export function startReminderEngine(getLang: () => Language) {
           }
         }
       }
-    } catch {}
+    } catch (err) {
+      console.error('[Reminders] Engine tick failed uncaught error:', err)
+    }
   }
 
   void tick()
@@ -284,5 +307,7 @@ export function notifyOS(title: string, body: string) {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification(`${title}`, { body, tag: 'smriti-reminder' })
     }
-  } catch {}
+  } catch (err) {
+    console.warn('[Reminders] Failed to send OS Notification', err)
+  }
 }

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FBF8F2" />
     <meta name="description" content="Smriti Sathi — AI-driven cognitive therapeutics for dementia. Offline-first." />
     <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
@@ -13,17 +13,19 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&family=Noto+Sans+Bengali:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>Smriti Sathi</title>
     <script>
       (function() {
+        // Apply saved theme before first paint to avoid a light-mode flash
+        try {
+          if (localStorage.getItem('smriti-theme') === 'dark') {
+            document.documentElement.setAttribute('data-theme', 'dark');
+          }
+        } catch (e) {}
         if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
           try {
             window.speechSynthesis.cancel();
-            window.speechSynthesis.speak = function() {};
-            window.speechSynthesis.pause = function() {};
-            window.speechSynthesis.resume = function() {};
-            window.SpeechSynthesisUtterance = function() { return {}; };
           } catch (e) {}
         }
         document.addEventListener('selectstart', function(e) {
@@ -34,25 +36,11 @@
         }, { passive: false });
       })();
     </script>
-    <script type="module" crossorigin src="./assets/index-CaF5vmFH.js"></script>
+    <script type="module" crossorigin src="./assets/index-CEYAd6uv.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/react-CIE12tXq.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-BJMUVZk2.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-DmM-evl-.css">
   </head>
   <body>
     <div id="root"></div>
-    <script>
-      window.onerror = function (msg, src, line, col) {
-        var el = document.createElement('pre')
-        el.style.cssText = 'position:fixed;inset:auto 8px 8px 8px;z-index:99999;background:#1d1d1f;color:#fff;font-size:11px;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'
-        el.textContent = 'JS ERROR: ' + msg + '\n' + src + ':' + line + ':' + col
-        document.body.appendChild(el)
-      }
-      window.addEventListener('unhandledrejection', function (e) {
-        var el = document.createElement('pre')
-        el.style.cssText = 'position:fixed;inset:auto 8px 8px 8px;z-index:99999;background:#7a1f1f;color:#fff;font-size:11px;padding:8px;white-space:pre-wrap;max-height:40vh;overflow:auto'
-        el.textContent = 'PROMISE REJECTION: ' + (e.reason && (e.reason.message || e.reason.stack || String(e.reason)))
-        document.body.appendChild(el)
-      })
-    </script>
   </body>
 </html>

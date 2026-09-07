@@ -5,13 +5,12 @@ import { confirmAlarm } from '../lib/reminders'
 import type { DailyReminder, AppointmentReminder } from '../lib/types'
 
 export function Reminders() {
-  const { dailyReminders, appointments, profile, lang } = useApp()
+  const { dailyReminders, appointments, profile, t, lang } = useApp()
   const [activeTab, setActiveTab] = useState<'daily' | 'appointments'>('daily')
   const [completedIds, setCompletedIds] = useState<string[]>([])
 
   const todayStr = new Date().toISOString().split('T')[0]
-  const todayAppointments = appointments.filter((a) => a.active && a.date === todayStr)
-  const upcomingAppointments = appointments.filter((a) => a.active && a.date >= todayStr)
+  const upcomingAppointments = appointments.filter((a) => (a.active ?? true) && a.date >= todayStr)
 
   async function toggleDone(reminder: DailyReminder) {
     if (completedIds.includes(reminder.id)) {
@@ -30,7 +29,7 @@ export function Reminders() {
   }
 
   return (
-    <div className="page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 90 }}>
+    <div className="page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Header Banner */}
       <div
         style={{
@@ -44,19 +43,17 @@ export function Reminders() {
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <span className="chip" style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 12, fontWeight: 700 }}>
-            🔔 {lang === 'hi' ? 'दैनिक सूचनाएं और अपॉइंटमेंट' : 'DAILY REMINDERS & SCHEDULE'}
+            🔔 {t('nav_reminders')}
           </span>
           <span style={{ fontSize: 13, color: 'var(--muga-gold-light)', fontWeight: 600 }}>
             {new Date().toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
           </span>
         </div>
-        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: '0 0 6px 0' }}>
-          {profile?.patient.name ? `${profile.patient.name}'s Schedule` : 'Daily Schedule'}
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, margin: '0 0 6px 0', color: '#ffffff' }}>
+          {profile?.patient.name ? `${profile.patient.name}'s ${t('nav_reminders')}` : t('nav_reminders')}
         </h1>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.8)', margin: 0 }}>
-          {lang === 'hi'
-            ? 'समय पर पानी पीना, भोजन और डॉक्टर से मिलना।'
-            : 'Gentle prompts for hydration, healthy meals, and doctor visits.'}
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)', margin: 0 }}>
+          {t('hydration_reminder')}
         </p>
       </div>
 
@@ -67,36 +64,36 @@ export function Reminders() {
           onClick={() => setActiveTab('daily')}
           style={{
             flex: 1,
-            background: activeTab === 'daily' ? '#0B131F' : '#E8E1D5',
-            color: activeTab === 'daily' ? '#fff' : '#162436',
+            background: activeTab === 'daily' ? 'var(--primary)' : 'var(--surface-muted)',
+            color: activeTab === 'daily' ? 'var(--ink-on-primary)' : 'var(--ink)',
             border: 'none',
             borderRadius: 16,
-            minHeight: 44,
+            minHeight: 48,
             fontSize: 14,
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
         >
-          💧 {lang === 'hi' ? 'दैनिक यादें' : 'Daily Reminders'} ({dailyReminders.filter((r) => r.active).length})
+          💧 {t('nav_reminders')} ({dailyReminders.filter((r) => r.active ?? r.enabled ?? true).length})
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('appointments')}
           style={{
             flex: 1,
-            background: activeTab === 'appointments' ? '#0B131F' : '#E8E1D5',
-            color: activeTab === 'appointments' ? '#fff' : '#162436',
+            background: activeTab === 'appointments' ? 'var(--primary)' : 'var(--surface-muted)',
+            color: activeTab === 'appointments' ? 'var(--ink-on-primary)' : 'var(--ink)',
             border: 'none',
             borderRadius: 16,
-            minHeight: 44,
+            minHeight: 48,
             fontSize: 14,
             fontWeight: 700,
             cursor: 'pointer',
             transition: 'all 0.15s ease',
           }}
         >
-          🩺 {lang === 'hi' ? 'डॉक्टर अपॉइंटमेंट' : 'Appointments'} ({upcomingAppointments.length})
+          🩺 {t('appointments')} ({upcomingAppointments.length})
         </button>
       </div>
 
@@ -107,15 +104,15 @@ export function Reminders() {
             <div className="card" style={{ padding: 24, textAlign: 'center', borderRadius: 20 }}>
               <span style={{ fontSize: 44, display: 'block', marginBottom: 8 }}>💧</span>
               <p style={{ color: 'var(--ink-muted)', fontSize: 15 }}>
-                {lang === 'hi' ? 'कोई दैनिक रिमाइंडर सेट नहीं है।' : 'No daily reminders set.'}
+                {t('meds_empty_sub')}
               </p>
             </div>
           ) : (
             dailyReminders
-              .filter((r) => r.active)
+              .filter((r) => r.active ?? r.enabled ?? true)
               .map((r) => {
                 const isDone = completedIds.includes(r.id)
-                const title = lang === 'hi' && r.titleHi ? r.titleHi : r.title
+                const title = r.title
 
                 return (
                   <div
@@ -139,7 +136,7 @@ export function Reminders() {
                           width: 48,
                           height: 48,
                           borderRadius: '50%',
-                          background: isDone ? '#D0EBD8' : 'var(--surface-muted)',
+                          background: isDone ? 'var(--success-soft)' : 'var(--surface-muted)',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
@@ -162,8 +159,8 @@ export function Reminders() {
                       type="button"
                       onClick={() => void toggleDone(r)}
                       style={{
-                        width: 40,
-                        height: 40,
+                        width: 48,
+                        height: 48,
                         borderRadius: '50%',
                         border: isDone ? '2px solid var(--success)' : '2px solid var(--border)',
                         background: isDone ? 'var(--success)' : '#fff',
@@ -174,9 +171,9 @@ export function Reminders() {
                         cursor: 'pointer',
                         transition: 'all 0.15s ease',
                       }}
-                      aria-label="Mark completed"
+                      aria-label={t('taken_btn')}
                     >
-                      <Icon name="check" size={20} color={isDone ? '#fff' : '#ccc'} />
+                      <Icon name="check" size={24} color={isDone ? 'var(--ink-on-primary)' : 'var(--ink-faint)'} />
                     </button>
                   </div>
                 )

@@ -9,6 +9,7 @@ export interface GameDef {
   phase: Phase
   domain: string
   cultural: string
+  culturalHi?: string
   principle: string
   glyph: string
   instructionKey: string
@@ -164,6 +165,7 @@ export const GAMES: GameDef[] = [
     phase: 2,
     domain: 'Pattern Completion & Visual Attention',
     cultural: 'Gamosa red motifs, Naga shawl bands, Mizo Puan stripes, Manipuri Phanek',
+    culturalHi: 'गोमósा लाल नमूने, नागा शॉल पट्टी, मizo पुआन धरा, मणिपुरी फनेक',
     principle: 'Cognitive pattern recognition & inductive reasoning',
     glyph: '🧶',
     instructionKey: 'g_loom_intro',
@@ -194,6 +196,7 @@ export const GAMES: GameDef[] = [
     phase: 2,
     domain: 'Categorization & Cognitive Flexibility',
     cultural: 'Sorting fruits, forest animals, tools, handloom textiles & flowers',
+    culturalHi: 'फल, जंगल के जानवर, औजार, हथकरघा वस्त्र और फूलों की छँटाई',
     principle: 'Semantic categorization & sorting',
     glyph: '🧺',
     instructionKey: 'g_bamboo_intro',
@@ -239,6 +242,7 @@ export const GAMES: GameDef[] = [
     phase: 2,
     domain: 'Rhythmic Attention & Timing',
     cultural: 'Mizo Cheraw rhythmic bamboo dance',
+    culturalHi: 'मिज़ो छेराव लयबद्ध बांस नर्तन',
     principle: 'Sustained timing & motor synchronization',
     glyph: '🥢',
     instructionKey: 'g_cheraw_intro',
@@ -254,6 +258,7 @@ export const GAMES: GameDef[] = [
     phase: 2,
     domain: 'Selective Visual Attention',
     cultural: 'Tea estate mornings, Bihu courtyard & river landing scenes',
+    culturalHi: 'चाय बागান की सुबह, बिहु आंगन और नदी किनारे के दृश्य',
     principle: 'Visual discrimination & focus',
     glyph: '🔍',
     instructionKey: 'g_spot_intro',

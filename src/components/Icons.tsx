@@ -68,6 +68,25 @@ export function Icon({ name, size = 24, color = 'currentColor' }: { name: string
       </>
     ),
     back: <path d="M15 6l-6 6 6 6" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />,
+    bell: (
+      <>
+        <path
+          d="M6 9a6 6 0 0 1 12 0c0 4 1.5 5.5 2 6H4c.5-.5 2-2 2-6z"
+          fill="none"
+          stroke={color}
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <path d="M10 18a2.2 2.2 0 0 0 4 0" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+    volume: (
+      <>
+        <path d="M4 10v4h3l4 3.5v-11L7 10H4z" fill={color} />
+        <path d="M15 9.5a3.5 3.5 0 0 1 0 5M17.5 7a7 7 0 0 1 0 10" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
+      </>
+    ),
+    close: <path d="M6 6l12 12M18 6L6 18" fill="none" stroke={color} strokeWidth="2.4" strokeLinecap="round" />,
     check: <path d="M5 12.5l4.5 4.5L19 7.5" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />,
     plus: <path d="M12 5v14M5 12h14" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" />,
     camera: (

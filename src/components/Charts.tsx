@@ -26,7 +26,7 @@ export function LineTrendChart({
   data,
   title,
   unit = '',
-  color = '#162436',
+  color = 'var(--ink)',
   minVal,
   maxVal,
   height = 160,
@@ -42,15 +42,15 @@ export function LineTrendChart({
           textAlign: 'center',
         }}
       >
-        <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#162436', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
+        <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 12 }}>
           {title}
         </span>
-        <div style={{ padding: '24px 12px', background: '#F8FAFC', borderRadius: 16, border: '1px dashed #D1D5DB' }}>
+        <div style={{ padding: '24px 12px', background: 'var(--surface-muted)', borderRadius: 16, border: '1px dashed var(--border)' }}>
           <span style={{ fontSize: 24, display: 'block', marginBottom: 8 }}>📊</span>
-          <strong style={{ display: 'block', fontSize: 14, color: '#162436', marginBottom: 4 }}>
+          <strong style={{ display: 'block', fontSize: 14, color: 'var(--ink)', marginBottom: 4 }}>
             Not enough activity yet
           </strong>
-          <p style={{ fontSize: 13, color: '#6B7280', margin: 0, lineHeight: 1.4 }}>
+          <p style={{ fontSize: 13, color: 'var(--ink-muted)', margin: 0, lineHeight: 1.4 }}>
             {emptyMessage}
           </p>
         </div>
@@ -94,7 +94,7 @@ export function LineTrendChart({
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#162436', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           {title}
         </span>
         <span style={{ fontSize: 14, fontWeight: 700, color }}>
@@ -125,7 +125,7 @@ export function LineTrendChart({
                 y1={y}
                 x2={width - paddingRight}
                 y2={y}
-                stroke="#E5E7EB"
+                stroke="var(--border)"
                 strokeDasharray="3 3"
                 strokeWidth="1"
               />
@@ -135,7 +135,7 @@ export function LineTrendChart({
                 textAnchor="end"
                 fontSize="10"
                 fontWeight="600"
-                fill="#9CA3AF"
+                fill="var(--ink-muted)"
               >
                 {gridVal}
                 {unit}
@@ -160,14 +160,14 @@ export function LineTrendChart({
         {/* Point nodes with values */}
         {points.map((p, idx) => (
           <g key={idx}>
-            <circle cx={p.x} cy={p.y} r="4.5" fill="#FFFFFF" stroke={color} strokeWidth="2.5" />
+            <circle cx={p.x} cy={p.y} r="4.5" fill="var(--card)" stroke={color} strokeWidth="2.5" />
             <text
               x={p.x}
               y={height - 8}
               textAnchor="middle"
               fontSize="10"
               fontWeight="600"
-              fill="#6B7280"
+              fill="var(--ink-muted)"
             >
               {p.label}
             </text>
@@ -186,7 +186,7 @@ export function DomainBarChart({ items }: { items: DomainBarItem[] }) {
   if (!items || items.length === 0) {
     return (
       <div className="card" style={{ padding: '24px 20px', borderRadius: 20, textAlign: 'center' }}>
-        <p style={{ fontSize: 14, color: '#6B7280', margin: 0 }}>No domain activity recorded yet.</p>
+        <p style={{ fontSize: 14, color: 'var(--ink-muted)', margin: 0 }}>No domain activity recorded yet.</p>
       </div>
     )
   }
@@ -205,10 +205,10 @@ export function DomainBarChart({ items }: { items: DomainBarItem[] }) {
   return (
     <div className="card" style={{ padding: '24px 20px', borderRadius: 20 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <span style={{ fontSize: 13, fontWeight: 700, color: '#162436', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           COGNITIVE DOMAIN COMPARISON
         </span>
-        <span style={{ fontSize: 11, color: '#6B7280', fontWeight: 600 }}>Task Proficiency</span>
+        <span style={{ fontSize: 11, color: 'var(--ink-muted)', fontWeight: 600 }}>Task Proficiency</span>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -216,22 +216,22 @@ export function DomainBarChart({ items }: { items: DomainBarItem[] }) {
           const icon = domainIcons[item.domain] || '🌱'
           const pct = item.attempts > 0 ? item.score : 0
           const barColor =
-            item.score >= 75 ? '#15803D' : item.score >= 50 ? '#D97706' : '#DC2626'
+            item.score >= 75 ? 'var(--success)' : item.score >= 50 ? 'var(--warn)' : 'var(--error)'
 
           return (
             <div key={item.domain}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: 16 }}>{icon}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: '#162436' }}>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--ink)' }}>
                     {item.label.replace(' Task Performance', '')}
                   </span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 11, color: '#6B7280', background: '#F3F4F6', padding: '2px 6px', borderRadius: 6, fontWeight: 600 }}>
+                  <span style={{ fontSize: 11, color: 'var(--ink-muted)', background: 'var(--surface-muted)', padding: '2px 6px', borderRadius: 6, fontWeight: 600 }}>
                     {DIFFICULTY_LABELS[item.difficulty] || `Diff ${item.difficulty}`}
                   </span>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: item.attempts > 0 ? '#162436' : '#9CA3AF', minWidth: 40, textAlign: 'right' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: item.attempts > 0 ? 'var(--ink)' : 'var(--ink-muted)', minWidth: 40, textAlign: 'right' }}>
                     {item.attempts > 0 ? `${item.score}%` : '—'}
                   </span>
                 </div>
@@ -247,7 +247,7 @@ export function DomainBarChart({ items }: { items: DomainBarItem[] }) {
                 style={{
                   height: 9,
                   borderRadius: 5,
-                  background: '#E5E7EB',
+                  background: 'var(--border)',
                   overflow: 'hidden',
                 }}
               >

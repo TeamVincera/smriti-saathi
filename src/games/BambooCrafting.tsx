@@ -34,7 +34,7 @@ export function BambooCrafting({ difficulty, logAction, complete }: GameProps) {
         setGlowCatIdx(round.correctCatIdx)
         playSoftCue()
       }
-    }, 7000)
+    }, 4000)
 
     return () => {
       clearTimeout(glowTimer)
@@ -131,7 +131,7 @@ export function BambooCrafting({ difficulty, logAction, complete }: GameProps) {
               <span style={{ fontSize: 72, lineHeight: 1.1, marginBottom: 8 }}>🧺</span>
               <strong style={{ fontSize: 'var(--fs-title)', color: isSelected && !isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{catName}</strong>
               <span className="caption mt-xs" style={{ color: 'var(--primary)', fontWeight: 600 }}>
-                {cat.emoji} Basket
+                {cat.emoji} {lang === 'hi' ? 'टोकरी' : 'Basket'}
               </span>
             </button>
           )
@@ -139,7 +139,7 @@ export function BambooCrafting({ difficulty, logAction, complete }: GameProps) {
       </div>
 
       <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted-48)' }}>
-        Put the item into the basket it belongs to.
+        {lang === 'hi' ? 'वस्तु को उसकी टोकरी में रखें।' : 'Put the item into the basket it belongs to.'}
       </p>
     </div>
   )

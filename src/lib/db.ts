@@ -11,11 +11,11 @@ const DB_VERSION = 2
 let dbPromise: Promise<IDBDatabase> | null = null
 
 export const DEFAULT_DAILY_REMINDERS: DailyReminder[] = [
-  { id: 'rem-water', title: 'Drink water', description: 'Stay hydrated with a fresh glass of water', time: '09:00', enabled: true, category: 'hydration' },
-  { id: 'rem-breakfast', title: 'Eat breakfast', description: 'Enjoy a nourishing morning meal', time: '08:00', enabled: true, category: 'meal' },
-  { id: 'rem-walk', title: 'Go for a walk', description: 'A gentle walk in the fresh air', time: '10:30', enabled: true, category: 'activity' },
-  { id: 'rem-rest', title: 'Take a rest', description: 'Relax quietly and rest your mind and body', time: '14:00', enabled: true, category: 'rest' },
-  { id: 'rem-family', title: 'Call family', description: 'Spend a moment connecting with loved ones', time: '17:30', enabled: true, category: 'general' },
+  { id: 'rem-water', title: 'Drink water', titleHi: 'ताज़ा पानी पिएं', description: 'Stay hydrated with a fresh glass of water', time: '09:00', enabled: true, active: true, emoji: '💧', category: 'hydration' },
+  { id: 'rem-breakfast', title: 'Eat breakfast', titleHi: 'सुबह का नाश्ता करें', description: 'Enjoy a nourishing morning meal', time: '08:00', enabled: true, active: true, emoji: '🥣', category: 'meal' },
+  { id: 'rem-walk', title: 'Go for a walk', titleHi: 'हल्की सैर पर जाएं', description: 'A gentle walk in the fresh air', time: '10:30', enabled: true, active: true, emoji: '🚶', category: 'activity' },
+  { id: 'rem-rest', title: 'Take a rest', titleHi: 'दोपहर का विश्राम करें', description: 'Relax quietly and rest your mind and body', time: '14:00', enabled: true, active: true, emoji: '🛏️', category: 'rest' },
+  { id: 'rem-family', title: 'Call family', titleHi: 'परिवार से बात करें', description: 'Spend a moment connecting with loved ones', time: '17:30', enabled: true, active: true, emoji: '📞', category: 'general' },
 ]
 
 function openDb(): Promise<IDBDatabase> {
@@ -125,7 +125,9 @@ export const saveSrt = (s: Record<string, SrtItem>) => dbSet('kv', s, 'srt')
 export async function loadDailyReminders(): Promise<DailyReminder[]> {
   try {
     const list = await dbAll<DailyReminder>('daily_reminders')
-    if (list && list.length > 0) return list
+    if (list && list.length > 0) {
+      return list.map((r) => ({ ...r, active: r.active ?? r.enabled ?? true }))
+    }
     // Initialize defaults if empty
     for (const item of DEFAULT_DAILY_REMINDERS) {
       await dbSet('daily_reminders', item, item.id)

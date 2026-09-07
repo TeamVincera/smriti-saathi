@@ -183,7 +183,7 @@ export function downloadReportImage(data: DoctorReportExportData) {
     const dataUrl = canvas.toDataURL('image/png')
     const a = document.createElement('a')
     const safeName = (data.patientName || 'Patient').replace(/[^a-z0-9]/gi, '_')
-    a.download = `Silhouette_Care_Report_${safeName}_${new Date().toISOString().split('T')[0]}.png`
+    a.download = `Smriti_Sathi_Care_Report_${safeName}_${new Date().toISOString().split('T')[0]}.png`
     a.href = dataUrl
     document.body.appendChild(a)
     a.click()

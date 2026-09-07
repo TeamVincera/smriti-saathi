@@ -45,7 +45,7 @@ export function VillageSounds({ difficulty, logAction, complete }: GameProps) {
         setGlowId(round.target.id)
         playSoftCue()
       }
-    }, 8500)
+    }, 4000)
 
     return () => {
       clearTimeout(autoTimer)

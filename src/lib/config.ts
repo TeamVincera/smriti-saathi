@@ -1,6 +1,6 @@
 /**
  * Secure Environment Configuration
- * Centralizes access to Groq & Sarvam keys without leaking them in logs, UI, or traces.
+ * Centralizes access to Groq keys without leaking them in logs, UI, or traces.
  */
 
 function getEnvVar(key: string, fallback = ''): string {
@@ -29,16 +29,9 @@ export const ENV_CONFIG = {
   get groqApiKey(): string {
     return getEnvVar('VITE_GROQ_API_KEY') || getEnvVar('GROQ_API_KEY')
   },
-  get sarvamApiKey(): string {
-    return getEnvVar('VITE_SARVAM_API_KEY') || getEnvVar('SARVAM_API_KEY')
-  },
   get isGroqConfigured(): boolean {
     const key = this.groqApiKey
     return Boolean(key && key.startsWith('gsk_') && key.length > 20)
-  },
-  get isSarvamConfigured(): boolean {
-    const key = this.sarvamApiKey
-    return Boolean(key && key.length > 15)
   },
   get isOnline(): boolean {
     if (typeof navigator !== 'undefined' && 'onLine' in navigator) {

@@ -685,7 +685,9 @@ input[type="date"].input, input[type="time"].input {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: calc(64px + var(--safe-bottom));
+  min-height: calc(64px + var(--safe-bottom));
+  height: auto;
+  padding-top: 6px;
   padding-bottom: max(var(--safe-bottom), 12px);
   padding-left: max(16px, var(--safe-left));
   padding-right: max(16px, var(--safe-right));
@@ -695,11 +697,12 @@ input[type="date"].input, input[type="time"].input {
 
 .tabbar-inner {
   width: 100%;
-  max-width: var(--max-w);
+  max-width: 520px;
+  margin: 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-around;
-  gap: 4px;
+  gap: 6px;
 }
 
 .tab-item {
@@ -1011,19 +1014,32 @@ input[type="date"].input, input[type="time"].input {
    RHYTHM PAD & GAME SCENES
    ───────────────────────────────────────────── */
 .rhythm-pad {
-  width: min(78vw, 340px);
+  width: min(42vw, 200px);
   aspect-ratio: 1;
   border-radius: var(--r-pill);
   background: var(--primary);
   color: var(--ink-on-dark);
   border: 3px solid rgba(255, 255, 255, 0.2);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  font-size: clamp(22px, 3vw, 30px);
+  font-size: clamp(18px, 3vw, 26px);
   font-weight: 700;
   box-shadow: var(--shadow-xl);
   transition: transform 0.08s ease;
+}
+
+.responsive-games-grid {
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .responsive-games-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .rhythm-pad.hit {

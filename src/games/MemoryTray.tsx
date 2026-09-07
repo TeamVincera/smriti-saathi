@@ -125,7 +125,7 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
                     display: 'flex',
                     flexDirection: 'column',
                     alignItems: 'center',
-                    background: '#fff',
+                    background: 'var(--card)',
                     padding: 'var(--s-md) var(--s-lg)',
                     borderRadius: 'var(--r-lg)',
                     boxShadow: 'var(--shadow-sm)',

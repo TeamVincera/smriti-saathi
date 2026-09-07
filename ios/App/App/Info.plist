@@ -66,5 +66,11 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Smriti Sathi uses the microphone for voice typing so you can talk to Sathi AI instead of typing.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Smriti Sathi uses the camera to capture photos of medicines and family members for memory exercises.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Smriti Sathi accesses your photo library to select pictures of family members for memory exercises.</string>
 </dict>
 </plist>

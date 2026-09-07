@@ -5,6 +5,7 @@ import { sessionRng } from '../lib/rng'
 import type { Rng } from '../lib/rng'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playTap, playChime, playSoftCue } from '../lib/audio'
+import { useApp } from '../state'
 
 type Side = 0 | 1
 
@@ -14,11 +15,11 @@ interface Beat {
 }
 
 function makePattern(rng: Rng, beats: number): Beat[] {
-  const baseGap = 700 - Math.min(200, (beats - 4) * 60)
+  const baseGap = 850 - Math.min(100, (beats - 4) * 30)
   const out: Beat[] = []
   let side: Side = rng() < 0.5 ? 0 : 1
   for (let i = 0; i < beats; i++) {
-    out.push({ side, gapMs: baseGap + ((i * 37) % 2) * 150 })
+    out.push({ side, gapMs: Math.max(750, baseGap + ((i * 37) % 2) * 150) })
     if (rng() < 0.7) side = (1 - side) as Side
   }
   return out
@@ -28,6 +29,7 @@ const DOMAIN = 'rhythm'
 const TOTAL_PATTERNS = 3
 
 export function CherawSteps({ logAction, complete }: GameProps) {
+  const { lang } = useApp()
   const rng = useRef(sessionRng('cheraw')).current
   const [patternIdx, setPatternIdx] = useState(0)
   const [level, setLevel] = useState(() => nextLevel(DOMAIN))
@@ -120,7 +122,7 @@ export function CherawSteps({ logAction, complete }: GameProps) {
   return (
     <div className="center-col" style={{ width: '100%' }}>
       <RoundHeader now={patternIdx + 1} total={TOTAL_PATTERNS} unit="round" label={`🎵 Rhythm ${hits} / ${pattern.length}`} />
-      <p className="lead">{phase === 'listen' ? 'Listen to the bamboo clapping…' : 'Now tap the same side as the bamboo!'}</p>
+      <p className="lead">{phase === 'listen' ? (lang === 'hi' ? 'बांस की थाप सुनिए...' : 'Listen to the bamboo clapping…') : (lang === 'hi' ? 'अब बांस की तरफ टैप करें!' : 'Now tap the same side as the bamboo!')}</p>
       <div className="row" style={{ gap: 'var(--s-xl)', justifyContent: 'center' }}>
         {[0, 1].map((s) => (
           <button
@@ -131,11 +133,11 @@ export function CherawSteps({ logAction, complete }: GameProps) {
           >
             {litSide === s ? '👏' : '🎋'}
             <br />
-            {s === 0 ? 'LEFT' : 'RIGHT'}
+            {s === 0 ? (lang === 'hi' ? 'बायीं' : 'LEFT') : (lang === 'hi' ? 'दाईं' : 'RIGHT')}
           </button>
         ))}
       </div>
-      <p className="caption">The Cheraw dance of Mizoram — no wrong step can stop the music.</p>
+      <p className="caption">{lang === 'hi' ? 'मिज़ोरम का छेराव नृत्य — कोई गलत कदम संगीत को नहीं रोक सकता।' : 'The Cheraw dance of Mizoram — no wrong step can stop the music.'}</p>
     </div>
   )
 }

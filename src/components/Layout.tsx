@@ -2,23 +2,23 @@ import type { ReactNode } from 'react'
 import { useApp } from '../state'
 import { navigate } from '../router'
 import { Icon } from './Icons'
+import { translate } from '../i18n'
 
 export function Layout({ children, hideNav = false }: { children: ReactNode; hideNav?: boolean }) {
-  const { profile } = useApp()
+  const { profile, lang } = useApp()
   const path = window.location.hash.replace(/^#/, '').split('?')[0] || '/'
-
   const tabs: { to: string; icon: string; label: string; testid: string }[] = [
-    { to: '/', icon: 'home', label: 'Home', testid: 'nav-home' },
-    { to: '/reminders', icon: 'bell', label: 'Reminders', testid: 'nav-reminders' },
-    { to: '/meds', icon: 'pill', label: 'Medicines', testid: 'nav-meds' },
-    { to: '/hub', icon: 'people', label: 'Caregiver', testid: 'nav-hub' },
+    { to: '/', icon: 'home', label: translate(lang, 'nav_home'), testid: 'nav-home' },
+    { to: '/reminders', icon: 'bell', label: translate(lang, 'nav_reminders'), testid: 'nav-reminders' },
+    { to: '/meds', icon: 'pill', label: translate(lang, 'nav_meds'), testid: 'nav-meds' },
+    { to: '/hub', icon: 'people', label: translate(lang, 'nav_hub'), testid: 'nav-hub' },
   ]
 
   return (
     <div className="app">
       {!hideNav && (
         <header className="nav-global">
-          <div className="nav-inner">
+          <div className="nav-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               {profile?.patient.photo ? (
                 <img
@@ -38,7 +38,7 @@ export function Layout({ children, hideNav = false }: { children: ReactNode; hid
                     width: 36,
                     height: 36,
                     borderRadius: '50%',
-                    background: '#ECECF0',
+                    background: 'var(--surface-muted)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -57,9 +57,28 @@ export function Layout({ children, hideNav = false }: { children: ReactNode; hid
                   letterSpacing: -0.2,
                 }}
               >
-                Smriti Sathi
+                {translate(lang, 'brand')}
               </span>
             </div>
+
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent('open-chatbot'))}
+              aria-label="Open Voice Assistant"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: 'var(--surface-muted)',
+                border: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              <Icon name="mic" size={20} color="var(--primary)" />
+            </button>
           </div>
         </header>
       )}

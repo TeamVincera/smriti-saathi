@@ -1,4 +1,2 @@
-export * from './VoiceHealthManager'
-export * from './VoiceCache'
-export * from './VoiceQualityAgent'
-export * from './VoiceService'
+export { VoiceService } from './VoiceService'
+export { GroqSpeechToText, whisperLanguage, sanitizeTranscript } from './SpeechToText'

@@ -185,6 +185,7 @@ export interface ClinicalConfig {
   alpha: number
   maxSessionsPerDay: number
   gracePeriodMin: number
+  theme: 'light' | 'dark'
 }
 
 export const DEFAULT_CONFIG: ClinicalConfig = {
@@ -192,5 +193,6 @@ export const DEFAULT_CONFIG: ClinicalConfig = {
   alpha: 0.65,
   maxSessionsPerDay: 3,
   gracePeriodMin: 30,
+  theme: 'light',
 }
 

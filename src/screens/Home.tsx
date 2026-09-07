@@ -10,9 +10,10 @@ import { Icon } from '../components/Icons'
 type CategoryFilter = 'all' | 'memory' | 'focus' | 'language'
 
 export function Home() {
-  const { profile, sessionsToday, dailyGameLimit, sessions, lang } = useApp()
+  const { profile, sessionsToday, dailyGameLimit, sessions, lang, t } = useApp()
   const [pick, setPick] = useState<{ gameId: string; difficulty: number; exploration: boolean } | null>(null)
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all')
+  const [capNotice, setCapNotice] = useState(false)
 
   useEffect(() => {
     void recommendNextGame().then(setPick)
@@ -43,70 +44,70 @@ export function Home() {
   const activityList = [
     {
       id: 'faces',
-      title: 'Faces of Home',
-      subtitle: 'Identify your loved ones in a calm setting',
-      bg: '#CDE8F6',
-      border: '1.5px solid #A4D5EE',
-      iconBg: '#FFFFFF',
-      iconColor: '#006064',
+      title: lang === 'hi' ? 'घर के अपने चेहरे' : 'Faces of Home',
+      subtitle: lang === 'hi' ? 'शांत वातावरण में अपने प्रियजनों को पहचानें' : 'Identify your loved ones in a calm setting',
+      bg: 'var(--pastel-blue)',
+      border: '1.5px solid var(--pastel-blue-border)',
+      iconBg: 'var(--card)',
+      iconColor: 'var(--pastel-blue-text)',
       glyph: '👨‍👩‍👧',
     },
     {
       id: 'tray',
-      title: 'Memory Tray',
-      subtitle: 'Recall traditional household items',
-      bg: '#D2ECD5',
-      border: '1.5px solid #A4DCA9',
-      iconBg: '#FFFFFF',
-      iconColor: '#2E7D32',
+      title: lang === 'hi' ? 'याददाश्त ट्रे' : 'Memory Tray',
+      subtitle: lang === 'hi' ? 'पारंपरिक घरेलू वस्तुएं याद करें' : 'Recall traditional household items',
+      bg: 'var(--pastel-green)',
+      border: '1.5px solid var(--pastel-green-border)',
+      iconBg: 'var(--card)',
+      iconColor: 'var(--pastel-green-text)',
       glyph: '🪞',
     },
     {
       id: 'melodies',
-      title: 'Morning Melodies',
-      subtitle: 'Listen and recall the tune',
-      bg: '#DED2F4',
-      border: '1.5px solid #BEACEC',
-      iconBg: '#FFFFFF',
-      iconColor: '#1A237E',
+      title: lang === 'hi' ? 'सुबह के सुर' : 'Morning Melodies',
+      subtitle: lang === 'hi' ? 'सुनें और धुन याद करें' : 'Listen and recall the tune',
+      bg: 'var(--pastel-purple)',
+      border: '1.5px solid var(--pastel-purple-border)',
+      iconBg: 'var(--card)',
+      iconColor: 'var(--pastel-purple-text)',
       glyph: '🎵',
     },
     {
       id: 'pairs',
-      title: 'Family Album',
-      subtitle: 'Match the floral pairs',
-      bg: '#CDE8F6',
-      border: '1.5px solid #A4D5EE',
-      iconBg: '#FFFFFF',
-      iconColor: '#006064',
+      title: lang === 'hi' ? 'परिवार एल्बम' : 'Family Album',
+      subtitle: lang === 'hi' ? 'फूलों के जोड़े मिलाएं' : 'Match the floral pairs',
+      bg: 'var(--pastel-blue)',
+      border: '1.5px solid var(--pastel-blue-border)',
+      iconBg: 'var(--card)',
+      iconColor: 'var(--pastel-blue-text)',
       glyph: '🖼️',
     },
     {
       id: 'foods',
-      title: 'Traditional Foods',
-      subtitle: 'Step by step recipes and dishes',
-      bg: '#FCD9CB',
-      border: '1.5px solid #F8B59E',
-      iconBg: '#FFFFFF',
-      iconColor: '#C62828',
+      title: lang === 'hi' ? 'पारंपरिक खाना' : 'Traditional Foods',
+      subtitle: lang === 'hi' ? 'कदम-दर-कदम रेसिपी और व्यंजन' : 'Step by step recipes and dishes',
+      bg: 'var(--pastel-peach)',
+      border: '1.5px solid var(--pastel-peach-border)',
+      iconBg: 'var(--card)',
+      iconColor: 'var(--pastel-peach-text)',
       glyph: '🍲',
     },
   ]
 
   const launchGame = (gameId: string, diff = 0) => {
     if (capReached) {
-      alert(lang === 'hi' ? 'आज के खेलों की सीमा पूरी हो गई है। कृपया कल फिर आइए।' : "Today's game limit has been reached. Please come back tomorrow.")
+      setCapNotice(true)
       return
     }
     navigate(`/game/${gameId}?d=${diff}`)
   }
 
   return (
-    <div className="page enter-anim">
+    <div className="page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
       {/* 1. Hero Greeting Banner */}
       <section
         style={{
-          background: '#C7E7F4',
+          background: 'var(--pastel-blue)',
           borderRadius: 24,
           padding: '24px 20px',
           marginBottom: 16,
@@ -115,17 +116,17 @@ export function Home() {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          border: '1.5px solid #99D1E8',
+          border: '1.5px solid var(--pastel-blue-border)',
         }}
       >
         <div style={{ zIndex: 2, flex: 1, minWidth: 0, paddingRight: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: '#162436', margin: 0, wordBreak: 'break-word' }}>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0, wordBreak: 'break-word' }}>
               {patientName ? `${greeting}, ${patientName}` : `${greeting}!`}
             </h2>
           </div>
-          <p style={{ fontSize: 14, color: '#334E68', lineHeight: 1.4, margin: '0 0 10px 0', fontWeight: 500 }}>
-            Let's start the day with a gentle mind exercise.
+          <p style={{ fontSize: 14, color: 'var(--pastel-blue-text)', lineHeight: 1.4, margin: '0 0 10px 0', fontWeight: 500 }}>
+            {lang === 'hi' ? 'आज की शुरुआत एक हल्के मानसिक व्यायाम के साथ करें।' : 'Let\'s start the day with a gentle mind exercise.'}
           </p>
           <span
             className="chip"
@@ -142,26 +143,46 @@ export function Home() {
           </span>
         </div>
 
-        {/* Meditation silhouette illustration */}
-        <div style={{ zIndex: 1, opacity: 0.28, marginRight: -10 }}>
-          <svg width="120" height="120" viewBox="0 0 100 100" fill="none">
-            <circle cx="50" cy="22" r="12" fill="#162436" />
-            <path
-              d="M50 38c-12 0-22 8-22 18 0 8 5 16 12 20-10 2-20 8-20 14 0 4 8 6 30 6s30-2 30-6c0-6-10-12-20-14 7-4 12-12 12-20 0-10-10-18-22-18z"
-              fill="#162436"
+        {/* Patient Avatar or Photo */}
+        <div style={{ zIndex: 1, marginRight: -4, flexShrink: 0 }}>
+          {profile?.patient.photo ? (
+            <img
+              src={profile.patient.photo}
+              alt={profile.patient.name}
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: '50%',
+                objectFit: 'cover',
+                border: '3px solid #ffffff',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+              }}
             />
-            <path
-              d="M20 78c4-8 16-14 30-14s26 6 30 14c-6 4-18 6-30 6s-24-2-30-6z"
-              fill="#162436"
-            />
-          </svg>
+          ) : (
+            <div
+              style={{
+                width: 76,
+                height: 76,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.7)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 42,
+                boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
+                border: '2px solid rgba(255, 255, 255, 0.9)',
+              }}
+            >
+              {profile?.patient.avatar || '👵'}
+            </div>
+          )}
         </div>
       </section>
 
       {/* 2. Recommended Game Card with Prominent PLAY CTA */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-        <h2 style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', letterSpacing: 0.5, textTransform: 'uppercase', margin: 0 }}>
-          {lang === 'hi' ? 'आज का अनुशंसित खेल' : "Today's Recommended Game"}
+        <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: 0.5, textTransform: 'uppercase', margin: 0 }}>
+          {t('today_game')}
         </h2>
         {capReached && (
           <span className="caption" style={{ color: 'var(--error)', fontWeight: 600 }}>
@@ -182,7 +203,7 @@ export function Home() {
           cursor: capReached ? 'default' : 'pointer',
           opacity: capReached ? 0.75 : 1,
           border: '1.5px solid var(--border)',
-          background: '#FFFFFF',
+          background: 'var(--card)',
           boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
         }}
         onClick={() => launchGame(today.id, pick?.difficulty ?? 0)}
@@ -190,15 +211,15 @@ export function Home() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span
             style={{
-              background: '#EADBCA',
-              color: '#5C3E14',
+              background: 'var(--warn-soft)',
+              color: 'var(--pastel-yellow-text)',
               fontSize: 11,
               fontWeight: 700,
               letterSpacing: 0.5,
               padding: '4px 10px',
               borderRadius: 8,
               textTransform: 'uppercase',
-              border: '1px solid #D6C2A6',
+              border: '1px solid var(--pastel-yellow-border)',
             }}
           >
             {lang === 'hi' ? 'अनुशंसित' : 'RECOMMENDED'}
@@ -206,7 +227,7 @@ export function Home() {
           <span style={{ fontSize: 24 }}>{today.glyph}</span>
         </div>
 
-        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: '#162436', marginBottom: 6 }}>
+        <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
           {lang === 'hi' && today.nameHi ? today.nameHi : today.name}
         </h3>
         <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 18, maxWidth: 300, lineHeight: 1.4 }}>
@@ -215,7 +236,7 @@ export function Home() {
 
         {/* Prominent Red PLAY Action Button */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: '#5A6A80', fontWeight: 600 }}>
+          <span style={{ fontSize: 13, color: 'var(--ink-secondary)', fontWeight: 600 }}>
             {today.domain}
           </span>
 
@@ -230,7 +251,7 @@ export function Home() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              background: capReached ? '#8C9AA8' : '#9E2224',
+              background: capReached ? 'var(--ink-muted)' : '#9E2224',
               color: '#FFFFFF',
               boxShadow: '0 4px 12px rgba(158, 34, 36, 0.25)',
               border: 'none',
@@ -242,7 +263,7 @@ export function Home() {
             }}
           >
             <span>▶</span>
-            <span>{lang === 'hi' ? 'शुरू करें (PLAY)' : 'PLAY'}</span>
+            <span>{t('start')}</span>
           </button>
         </div>
       </section>
@@ -250,9 +271,9 @@ export function Home() {
       {/* 3. Category Filter Chips */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
         {[
-          { key: 'all', label: 'All Activities' },
-          { key: 'memory', label: 'Memory' },
-          { key: 'focus', label: 'Focus' },
+          { key: 'all', label: t('cat_all') },
+          { key: 'memory', label: t('cat_memory') },
+          { key: 'focus', label: t('cat_attention') },
         ].map((cat) => {
           const isActive = activeCategory === cat.key
           return (
@@ -261,12 +282,13 @@ export function Home() {
               type="button"
               onClick={() => setActiveCategory(cat.key as CategoryFilter)}
               style={{
-                background: isActive ? '#0B131F' : '#E8E1D5',
-                color: isActive ? '#fff' : '#162436',
+                background: isActive ? 'var(--primary)' : 'var(--surface-muted)',
+                color: isActive ? 'var(--ink-on-primary)' : 'var(--ink)',
                 border: isActive ? 'none' : '1px solid #D8CFBF',
-                borderRadius: 20,
-                padding: '8px 18px',
-                fontSize: 13,
+                borderRadius: 22,
+                minHeight: 44,
+                padding: '10px 20px',
+                fontSize: 14,
                 fontWeight: 600,
                 whiteSpace: 'nowrap',
                 cursor: 'pointer',
@@ -280,10 +302,10 @@ export function Home() {
       </div>
 
       {/* 4. Activity List */}
-      <h2 style={{ fontSize: 13, fontWeight: 700, color: '#6B7280', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
-        More Games
+      <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
+        {t('more_games')}
       </h2>
-      <div className="tile-section" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="tile-section responsive-games-grid" style={{ gap: 14 }}>
         {activeCategory === 'all'
           ? activityList.map((act) => (
               <button
@@ -322,10 +344,10 @@ export function Home() {
                   {act.glyph}
                 </div>
                 <div>
-                  <strong style={{ display: 'block', fontSize: 16, fontWeight: 700, color: '#162436', marginBottom: 2 }}>
+                  <strong style={{ display: 'block', fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
                     {act.title}
                   </strong>
-                  <span style={{ fontSize: 13, color: '#5A6A80' }}>
+                  <span style={{ fontSize: 13, color: 'var(--ink-secondary)' }}>
                     {act.subtitle}
                   </span>
                 </div>
@@ -333,6 +355,8 @@ export function Home() {
             ))
           : filteredGames.map((g) => {
               const isUnlocked = unlocked.some((u) => u.id === g.id)
+              const gameName = lang === 'hi' && g.nameHi ? g.nameHi : g.name
+              const gameCultural = lang === 'hi' && g.culturalHi ? g.culturalHi : g.cultural
               return (
                 <button
                   key={g.id}
@@ -356,7 +380,7 @@ export function Home() {
                         width: 48,
                         height: 48,
                         borderRadius: 12,
-                        background: '#ECECF0',
+                        background: 'var(--surface-muted)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
@@ -366,8 +390,8 @@ export function Home() {
                       {g.glyph}
                     </div>
                     <div>
-                      <strong style={{ display: 'block', fontSize: 16, color: '#162436', marginBottom: 2 }}>{g.name}</strong>
-                      <span style={{ fontSize: 13, color: '#6B7280' }}>{g.cultural || `Phase ${g.phase}`}</span>
+                      <strong style={{ display: 'block', fontSize: 16, color: 'var(--ink)', marginBottom: 2 }}>{gameName}</strong>
+                      <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{gameCultural || (lang === 'hi' ? `चरण ${g.phase}` : `Phase ${g.phase}`)}</span>
                     </div>
                   </div>
                   {!isUnlocked && (
@@ -377,6 +401,56 @@ export function Home() {
               )
             })}
       </div>
+
+      {/* Gentle Limit Reached Modal */}
+      {capNotice && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            zIndex: 1000,
+          }}
+          onClick={() => setCapNotice(false)}
+        >
+          <div
+            className="card enter-anim"
+            style={{
+              maxWidth: 380,
+              width: '100%',
+              borderRadius: 24,
+              padding: '28px 24px',
+              textAlign: 'center',
+              background: 'var(--card)',
+              boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ fontSize: 44, marginBottom: 12 }}>🌸</div>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+              {t('praise_title')}
+            </h3>
+            <p style={{ fontSize: 15, color: 'var(--ink-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
+              {t('rest_now')}
+            </p>
+            <button
+              type="button"
+              className="btn btn-cta btn-block"
+              onClick={() => setCapNotice(false)}
+              style={{ minHeight: 48, borderRadius: 14, fontSize: 16, fontWeight: 700 }}
+            >
+              {t('done')}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -392,6 +466,21 @@ function greetingByHour(lang: string): string {
     if (h < 12) return 'সুপ্ৰভাত'
     if (h < 17) return 'শুভ দিন'
     return 'শুভ গধূলি'
+  }
+  if (lang === 'bn') {
+    if (h < 12) return 'সুপ্রভাত'
+    if (h < 17) return 'শুভ দুপুর'
+    return 'শুভ সন্ধ্যা'
+  }
+  if (lang === 'brx') {
+    if (h < 12) return 'फुंनि गोजोननाय'
+    if (h < 17) return 'सानसुनि गोजोननाय'
+    return 'बेलासिनि गोजोननाय'
+  }
+  if (lang === 'mni') {
+    if (h < 12) return 'ꯑꯌꯨꯛꯀꯤ ꯈꯨꯔꯨꯝꯖꯔꯤ'
+    if (h < 17) return 'ꯅꯨꯡꯊꯤꯜꯒꯤ ꯈꯨꯔꯨꯝꯖꯔꯤ'
+    return 'ꯅꯨꯃꯤꯗꯥꯡꯒꯤ ꯈꯨꯔꯨꯝꯖꯔꯤ'
   }
   if (h < 12) return 'Good Morning'
   if (h < 17) return 'Good Afternoon'

@@ -5,6 +5,7 @@ import { sessionRng } from '../lib/rng'
 import { genSpotBoard } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playChime, playSoftCue } from '../lib/audio'
+import { useApp } from '../state'
 
 // Stimulus-discrimination ("spot the difference") trains selective visual
 // attention — one of the exercises with consistent practice gains in adaptive
@@ -13,6 +14,7 @@ const DOMAIN = 'visualsearch'
 const TOTAL_BOARDS = 3
 
 export function SpotDifference({ logAction, complete }: GameProps) {
+  const { lang } = useApp()
   const rng = useRef(sessionRng('spot')).current
   const strays = useRef(0)
   const [boardIdx, setBoardIdx] = useState(0)
@@ -51,21 +53,23 @@ export function SpotDifference({ logAction, complete }: GameProps) {
     solved && isChange ? { animation: 'pulseGentle 1.2s infinite', borderColor: 'var(--primary-focus)' } : undefined
 
   return (
-    <div className="center-col" style={{ width: '100%' }}>
+    <div className="center-col" style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
       <RoundHeader now={boardIdx + 1} total={TOTAL_BOARDS} unit="round" label={`🔍 ${board.sceneName}`} />
-      <p className="lead">The right picture changed one thing. Tap what is different!</p>
-      <div className="row mt-sm" style={{ gap: 'var(--s-lg)', justifyContent: 'center', flexWrap: 'wrap' }}>
+      <p className="lead">{lang === 'hi' ? 'दूसरी तस्वीर में एक चीज़ बदली है। बदली हुई चीज़ पहचानिए!' : 'The second picture changed one thing. Tap what is different!'}</p>
+      <div className="row mt-sm" style={{ gap: 'var(--s-md)', justifyContent: 'center', flexWrap: 'wrap' }}>
         {[board.cellsA, board.cellsB].map((cells, bi) => (
-          <div key={bi}>
-            <span className="caption">{bi === 0 ? 'Picture 1' : 'Picture 2'}</span>
-            <div className="search-scene mt-xs" style={{ gridTemplateColumns: `repeat(${board.cols}, minmax(60px, 88px))` }}>
+          <div key={bi} style={{ textAlign: 'center' }}>
+            <span className="caption" style={{ fontWeight: 700, color: 'var(--ink)' }}>
+              {bi === 0 ? (lang === 'hi' ? 'तस्वीर 1' : 'Picture 1') : (lang === 'hi' ? 'तस्वीर 2 (बदली हुई)' : 'Picture 2 (Changed)')}
+            </span>
+            <div className="search-scene mt-xs" style={{ gridTemplateColumns: `repeat(${board.cols}, minmax(48px, 76px))` }}>
               {cells.map((v, i) => (
                 <button
                   key={i}
                   className={`scene-cell ${bi === 1 && solved && i === board.changedIdx ? 'found' : ''} ${bi === 1 && wrongIdx === i ? 'wrong' : ''}`}
                   style={bi === 1 ? cellStyle(i === board.changedIdx) : undefined}
                   onClick={() => bi === 1 && tap(i)}
-                  aria-label={`${bi === 0 ? 'left' : 'right'} tile ${i + 1}`}
+                  aria-label={`${bi === 0 ? 'first' : 'second'} tile ${i + 1}`}
                 >
                   {v}
                 </button>
@@ -74,7 +78,7 @@ export function SpotDifference({ logAction, complete }: GameProps) {
           </div>
         ))}
       </div>
-      <p className="caption">Only the second picture can be tapped.</p>
+      <p className="caption">{lang === 'hi' ? 'केवल दूसरी तस्वीर पर टैप करें।' : 'Tap the changed item in the second picture.'}</p>
     </div>
   )
 }

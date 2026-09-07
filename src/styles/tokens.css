@@ -61,13 +61,13 @@
 
   /* ── Borders & Dividers (More defined) ── */
   --border: #DDD5C7;
-  --border-light: #E7DFCFA;
+  --border-light: #E7DFCF;
   --border-focus: #162436;
   --divider: #DFD7C9;
 
-  /* ── Typography ── */
-  --font-display: "Outfit", system-ui, -apple-system, sans-serif;
-  --font-text: "Inter", system-ui, -apple-system, sans-serif;
+  /* ── Typography (with robust Indic font fallbacks for Assamese, Bengali, Bodo, Manipuri) ── */
+  --font-display: "Outfit", "Noto Sans Bengali", "Noto Sans Devanagari", "Vrinda", system-ui, -apple-system, sans-serif;
+  --font-text: "Inter", "Noto Sans Bengali", "Noto Sans Devanagari", "Vrinda", system-ui, -apple-system, sans-serif;
 
   /* ── Font Sizes (responsive with clamp) ── */
   --fs-hero: clamp(28px, 4.5vw, 38px);
@@ -76,6 +76,7 @@
   --fs-subtitle: clamp(17px, 2vw, 20px);
   --fs-body: clamp(15px, 1.5vw, 17px);
   --fs-body-sm: clamp(14px, 1.3vw, 15px);
+  --fs-body-lg: clamp(16px, 1.7vw, 18px);
   --fs-caption: clamp(12px, 1.1vw, 13px);
   --fs-label: clamp(11px, 1vw, 12px);
 
@@ -106,6 +107,15 @@
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
   --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.10);
+  --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.06);
+
+  /* ── Misc tokens used across components ── */
+  --ink-muted-48: rgba(107, 107, 109, 0.48);
+  --muga-gold-light: #D4A017;
+  --parchment: #F5EFE3;
+
+  /* ── Dark Theme Palette ── */
+  /* Applied via <html data-theme="dark"> for light ↔ dark switching */
 
   /* ── Safe Area Insets (Device Notch / Dynamic Island / Home Indicator) ── */
   --safe-top: env(safe-area-inset-top, 0px);
@@ -144,4 +154,87 @@
     --max-w: 640px;
     --container-max-w: 700px;
   }
+}
+
+/* ─────────────────────────────────────────────
+   DARK THEME — high-contrast, dementia-friendly
+   ───────────────────────────────────────────── */
+[data-theme='dark'] {
+  --primary: #2E4A6B;          /* Lighter navy for contrast on dark canvas */
+  --primary-light: #3C5C82;
+  --primary-focus: #27425F;
+  --secondary: #C24B4E;
+  --secondary-hover: #D35C5F;
+  --secondary-light: #3A2222;
+  --tertiary: #E8D5A8;
+  --neutral: #9CA3AF;
+
+  /* Semantic colors — brighter accents, deep soft backgrounds */
+  --success: #4CB37E;
+  --success-soft: #1E3A2B;
+  --success-text: #7DDBA4;
+  --warn: #E0A62E;
+  --warn-soft: #3A2F14;
+  --error: #EF5350;
+  --error-soft: #3B1E20;
+  --info: #4D9FDB;
+  --info-soft: #16283B;
+
+  /* Muted pastels (dark variants) */
+  --pastel-blue: #1E3A4D;
+  --pastel-blue-border: #2E5A78;
+  --pastel-blue-text: #9CD2F2;
+  --pastel-green: #1E3D2A;
+  --pastel-green-border: #2E5A42;
+  --pastel-green-text: #7DDBA4;
+  --pastel-yellow: #3A3013;
+  --pastel-yellow-border: #5C4C1E;
+  --pastel-yellow-text: #F3D98B;
+  --pastel-pink: #3D2126;
+  --pastel-pink-border: #5E3339;
+  --pastel-pink-text: #F5A3AD;
+  --pastel-purple: #2C2340;
+  --pastel-purple-border: #463A63;
+  --pastel-purple-text: #C9B4F2;
+  --pastel-teal: #17383A;
+  --pastel-teal-border: #26595C;
+  --pastel-teal-text: #7CD0C7;
+  --pastel-peach: #3D2A1B;
+  --pastel-peach-border: #5E442B;
+  --pastel-peach-text: #F6B88F;
+
+  /* Surfaces */
+  --canvas: #10161F;
+  --card: #1B2430;
+  --card-elevated: #222D3C;
+  --surface-muted: #232E3D;
+  --overlay: rgba(0, 0, 0, 0.65);
+
+  /* Text */
+  --ink: #E8ECF1;
+  --ink-secondary: #B9C3CF;
+  --ink-muted: #8A96A5;
+  --ink-faint: #6B7686;
+  --ink-on-dark: #FFFFFF;
+  --ink-on-primary: #FFFFFF;
+  --ink-on-secondary: #FFFFFF;
+
+  /* Borders */
+  --border: #33404F;
+  --border-light: #2A3542;
+  --border-focus: #6B93C0;
+  --divider: #2C3846;
+
+  /* Misc */
+  --ink-muted-48: rgba(138, 150, 165, 0.48);
+  --muga-gold-light: #E8C25C;
+  --parchment: #232E3D;
+
+  /* Shadows (deeper for dark) */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5), 0 2px 6px rgba(0, 0, 0, 0.3);
+  --shadow-xl: 0 16px 40px rgba(0, 0, 0, 0.55);
+  --shadow-card: 0 2px 10px rgba(0, 0, 0, 0.45);
 }

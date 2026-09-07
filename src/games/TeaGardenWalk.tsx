@@ -5,6 +5,7 @@ import { sessionRng } from '../lib/rng'
 import type { Rng } from '../lib/rng'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playChime, playTap, playSoftCue } from '../lib/audio'
+import { useApp } from '../state'
 
 interface Cell { r: number; c: number }
 
@@ -28,7 +29,9 @@ function makePath(rng: Rng, n: number): Cell[] {
 const DOMAIN = 'visuospatial'
 const TOTAL_WALKS = 2
 
+
 export function TeaGardenWalk({ logAction, complete }: GameProps) {
+  const { lang, t } = useApp()
   const rng = useRef(sessionRng('teawalk')).current
   const [walkIdx, setWalkIdx] = useState(0)
   const [level, setLevel] = useState(() => nextLevel(DOMAIN))
@@ -38,7 +41,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   const [glowCell, setGlowCell] = useState<Cell | null>(null)
   const leavesTotal = Math.max(1, Math.floor((path.length - 1) / 2))
   const leafCells = useMemo(() => new Set(path.slice(1).map((c) => `${c.r}-${c.c}`).slice(0, leavesTotal)), [path, leavesTotal])
-  const collected = useRef(0)
+  const [leavesCollected, setLeavesCollected] = useState(0)
   const unpromptedSteps = useRef(0)
   const totalSteps = useRef(0)
   const doneRef = useRef(false)
@@ -50,7 +53,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   }, [path])
 
   useEffect(() => {
-    const t = setTimeout(() => setGlowCell(nextCell), 4500)
+    const t = setTimeout(() => setGlowCell(nextCell), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
@@ -61,7 +64,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
       unpromptedSteps.current++
       const isLeaf = leafCells.has(`${r}-${c}`)
       if (isLeaf) {
-        collected.current++
+        setLeavesCollected((c) => c + 1)
         void playChime()
       } else {
         playTap()
@@ -77,6 +80,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
             setLevel(nextLevel(DOMAIN))
             setWalkIdx((w) => w + 1)
             setStep(0)
+            setLeavesCollected(0)
             doneRef.current = false
           } else {
             doneRef.current = true
@@ -98,10 +102,22 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   const workerPos = path[Math.min(step, path.length - 1)]
 
   return (
-    <div className="center-col" style={{ width: '100%' }}>
-      <RoundHeader now={walkIdx + 1} total={TOTAL_WALKS} unit="round" label={`🍃 ${collected.current} / ${leavesTotal} leaves`} />
-      <p className="lead">Walk the tea garden path — tap the next tile.</p>
-      <div className="search-scene" style={{ gridTemplateColumns: `repeat(${n}, minmax(64px, 92px))`, maxWidth: n * 110 }}>
+    <div className="center-col" style={{ width: '100%', maxWidth: 460, margin: '0 auto' }}>
+      <RoundHeader now={walkIdx + 1} total={TOTAL_WALKS} unit="round" label={`🍃 ${leavesCollected} / ${leavesTotal}`} />
+      <p className="lead" style={{ textAlign: 'center', marginBottom: 12 }}>
+        {t('g_teawalk_intro')}
+      </p>
+      <div
+        className="search-scene"
+        style={{
+          display: 'grid',
+          gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))`,
+          gap: 6,
+          width: '100%',
+          maxWidth: 400,
+          aspectRatio: '1/1',
+        }}
+      >
         {Array.from({ length: n * n }, (_, i) => {
           const r = Math.floor(i / n)
           const c = i % n
@@ -111,14 +127,28 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
           const isLeaf = leafCells.has(key)
           const glow = glowCell && glowCell.r === r && glowCell.c === c
           return (
-            <button key={key} className={`scene-cell ${worker ? 'found' : ''}`} style={glow ? { animation: 'pulseGentle 1.2s infinite', borderColor: 'var(--primary-focus)' } : undefined} onClick={() => tap(r, c)} aria-label={`tile ${r + 1},${c + 1}`}>
+            <button
+              key={key}
+              className={`scene-cell ${worker ? 'found' : ''}`}
+              style={{
+                width: '100%',
+                height: '100%',
+                minHeight: 48,
+                fontSize: 'clamp(18px, 5vw, 28px)',
+                ...(glow ? { animation: 'pulseGentle 1.2s infinite', borderColor: 'var(--primary-focus)' } : {}),
+              }}
+              onClick={() => tap(r, c)}
+              aria-label={`tile ${r + 1},${c + 1}`}
+            >
               {worker ? '👩‍🌾' : isLeaf ? '🍃' : ''}
               {!worker && !isLeaf ? (onPath ? '🌱' : ['🌳', '🌿', '🪨'][i % 3]) : ''}
             </button>
           )
         })}
       </div>
-      <p className="caption">Collect every tea leaf 🍃</p>
+      <p className="caption" style={{ marginTop: 12, color: 'var(--ink-muted)' }}>
+        🍃 {lang === 'hi' ? 'सारी चाय की पत्तियां इकट्ठा करें' : 'Collect every tea leaf'}
+      </p>
     </div>
   )
 }

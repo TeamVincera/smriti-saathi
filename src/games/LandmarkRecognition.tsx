@@ -32,7 +32,7 @@ export function LandmarkRecognition({ difficulty, logAction, complete }: GamePro
         setGlowId(round.target.id)
         playSoftCue()
       }
-    }, 7000)
+    }, 4000)
 
     return () => {
       clearTimeout(glowTimer)

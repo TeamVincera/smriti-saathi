@@ -42,9 +42,9 @@ export interface DynamicQuestionResponse {
 }
 
 class AIServiceClass {
-  private primaryModel = 'openai/gpt-oss-120b'
-  private fastModel = 'openai/gpt-oss-20b'
-  private fallbackModel = 'qwen/qwen3.6-27b'
+  private primaryModel = 'llama-3.3-70b-versatile'
+  private fastModel = 'llama-3.1-8b-instant'
+  private fallbackModel = 'llama-3.3-70b-versatile'
 
   /**
    * Dementia-Friendly AI Chatbot
@@ -54,26 +54,32 @@ class AIServiceClass {
     context?: MinimalPatientContext
   ): Promise<string> {
     const lang = context?.language || 'en'
-
-    if (!ENV_CONFIG.isGroqConfigured || !ENV_CONFIG.isOnline) {
-      return this.getLocalChatFallback(lang, context?.name)
-    }
-
     const systemPrompt = context
       ? PatientContextBuilder.toSystemPrompt(context)
       : `You are Sathi, a warm, caring dementia cognitive companion in North-Eastern India. Speak gently, keep sentences short and positive.`
 
     const fullMessages: ChatMessage[] = [
       { role: 'system', content: systemPrompt },
-      ...messages.slice(-6), // Send last 6 messages for context window efficiency
+      ...messages.slice(-6),
     ]
 
     try {
-      const response = await this.callGroq(fullMessages, { model: this.fastModel, temperature: 0.6, maxTokens: 180 })
-      return response || this.getLocalChatFallback(lang, context?.name)
-    } catch {
-      return this.getLocalChatFallback(lang, context?.name)
+      if (ENV_CONFIG.isGroqConfigured && ENV_CONFIG.isOnline) {
+        const response = await this.callGroq(fullMessages, { model: this.fastModel, temperature: 0.6, maxTokens: 180 })
+        if (response) return response
+      }
+    } catch (error) {
+      console.error('[AIService] chat API failed:', error)
     }
+    return this.getLocalChatFallback(lang, context?.name)
+  }
+
+  public isChatOnline(): boolean {
+    return ENV_CONFIG.isGroqConfigured && ENV_CONFIG.isOnline
+  }
+
+  public getModelName(): string {
+    return ENV_CONFIG.isGroqConfigured && ENV_CONFIG.isOnline ? this.fastModel : 'local-fallback'
   }
 
   /**

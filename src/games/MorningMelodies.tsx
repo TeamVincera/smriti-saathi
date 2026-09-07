@@ -45,7 +45,7 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
       if (!pickedId && !glowId) {
         setGlowId(round.target.id)
       }
-    }, 8500)
+    }, 4000)
 
     return () => {
       clearTimeout(autoTimer)
@@ -90,8 +90,12 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
       ? 'आपने कौन सा पारंपरिक वाद्य सुना?'
       : lang === 'as'
       ? 'আপুনি কোনটো বাদ্যৰ শব্দ শুনিলে?'
+      : lang === 'bn'
+      ? 'আপনি কোন বাদ্যযন্ত্রের সুর শুনলেন?'
+      : lang === 'brx'
+      ? 'नोंथाङा मा दामग्रा सुर खोनाबाय?'
       : lang === 'mni'
-      ? 'নহাক্না করম্বা বাদ্যগী খোঞ্জেল তারিবগে?'
+      ? 'ꯅꯍꯥꯛꯅ ꯀꯔꯝꯕ ꯈꯣꯡꯖꯥꯎꯒꯤ ꯈꯣꯟꯊꯣꯛ ꯇꯥꯔꯤꯕꯒꯦ?'
       : 'Which traditional instrument made this sound?'
 
   return (

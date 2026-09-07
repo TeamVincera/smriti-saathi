@@ -28,7 +28,7 @@ export default function App() {
     if (!ready || !profile?.onboarded) return
     const known =
       path === '/' || path === '/reminders' || path === '/meds' || path === '/hub' || path.startsWith('/game/')
-    if (!known) navigate('/')
+    if (!known) navigate('/', true)
   }, [ready, profile?.onboarded, path])
 
   if (!ready) {

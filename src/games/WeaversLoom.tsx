@@ -5,11 +5,13 @@ import { sessionRng } from '../lib/rng'
 import { genLoomRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playChime, playSoftCue } from '../lib/audio'
+import { useApp } from '../state'
 
 const TOTAL = 5
 const DOMAIN = 'pattern'
 
 export function WeaversLoom({ logAction, complete }: GameProps) {
+  const { lang } = useApp()
   const rng = useRef(sessionRng('loom')).current
   const [roundIdx, setRoundIdx] = useState(0)
   const [level, setLevel] = useState(() => nextLevel(DOMAIN))
@@ -19,7 +21,7 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
   const unprompted = useRef(0)
 
   useEffect(() => {
-    const t = setTimeout(() => setGlow(round.missing), 5500)
+    const t = setTimeout(() => setGlow(round.missing), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIdx])
@@ -53,7 +55,7 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
   return (
     <div className="center-col" style={{ width: '100%' }}>
       <RoundHeader now={roundIdx + 1} total={TOTAL} />
-      <p className="lead">Complete the weave.</p>
+      <p className="lead">{lang === 'hi' ? 'बुनाई पूरी करें।' : 'Complete the weave.'}</p>
       <div className="row" style={{ gap: 10 }}>
         {round.pattern.map((m, i) =>
           i === round.missingIdx ? (
@@ -71,7 +73,7 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
           )
         )}
       </div>
-      <p className="caption">A loom pattern — find the missing motif.</p>
+      <p className="caption">{lang === 'hi' ? 'एक बुनाई नमूना — गायब नमूना खोजें।' : 'A loom pattern — find the missing motif.'}</p>
       <div className="row" style={{ justifyContent: 'center', gap: 'var(--s-md)' }}>
         {round.options.map((o) => (
           <button

@@ -31,7 +31,7 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
         setGlowId(round.target.id)
         playSoftCue()
       }
-    }, 7000)
+    }, 4000)
 
     return () => {
       clearTimeout(glowTimer)
