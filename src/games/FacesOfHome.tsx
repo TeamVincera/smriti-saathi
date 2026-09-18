@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { shuffle } from './shared'
+import { AnswerFeedback, shuffle, useGameTimeout } from './shared'
 import { loadSrt, saveSrt } from '../lib/db'
 import { bumpSuccess, bumpMiss } from '../lib/srt'
 import { useApp } from '../state'
@@ -39,8 +39,10 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
   const [srt, setSrt] = useState<Record<string, SrtItem>>({})
   const [stageIdx, setStageIdx] = useState(1)
   const [pickedId, setPickedId] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
   const cued = useRef(0)
+  const completedRef = useRef(false)
 
   useEffect(() => {
     void loadSrt().then(setSrt)
@@ -97,7 +99,8 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
       playSoftCue()
     }
 
-    setTimeout(() => {
+    if (stageIdx >= TOTAL_ROUNDS) completedRef.current = true
+    scheduleTimeout(() => {
       setPickedId(null)
       if (stageIdx >= TOTAL_ROUNDS) {
         complete({
@@ -112,7 +115,9 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
   }
 
   function handleSkip() {
+    if (completedRef.current) return
     if (stageIdx >= TOTAL_ROUNDS) {
+      completedRef.current = true
       complete({
         itemsTotal: TOTAL_ROUNDS,
         itemsUnprompted: unprompted.current,
@@ -122,6 +127,8 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
       setStageIdx((s) => s + 1)
     }
   }
+
+  const feedbackState = pickedId === null ? 'idle' : pickedId === targetFace.id ? 'success' : 'guidance'
 
   return (
     <div className="enter-anim" style={{ width: '100%', maxWidth: 480, margin: '0 auto' }}>
@@ -193,9 +200,11 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
               key={face.id}
               type="button"
               onClick={() => pick(face)}
+              aria-pressed={isSelected}
+              data-answer-state={isSelected ? (isTarget ? 'correct' : 'guidance') : 'idle'}
               style={{
-                background: isSelected ? (isTarget ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                border: isSelected ? (isTarget ? '2.5px solid var(--success)' : '2.5px solid var(--error)') : '1.5px solid var(--border)',
+                background: isSelected ? (isTarget ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                border: isSelected ? (isTarget ? '2.5px solid var(--success)' : '2.5px solid var(--primary)') : '1.5px solid var(--border)',
                 borderRadius: 24,
                 padding: '16px 20px',
                 display: 'flex',
@@ -228,7 +237,7 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
               </div>
 
               {/* Name */}
-              <strong style={{ fontSize: 18, fontWeight: 700, color: isSelected && !isTarget ? 'var(--pastel-pink-text)' : 'var(--ink)', marginBottom: 4 }}>
+              <strong style={{ fontSize: 18, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
                 {face.name}
               </strong>
 
@@ -239,6 +248,8 @@ export function FacesOfHome({ difficulty, logAction, complete }: GameProps) {
           )
         })}
       </div>
+
+      <AnswerFeedback state={feedbackState} />
 
       {/* Skip Question Button */}
       <button

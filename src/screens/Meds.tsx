@@ -6,9 +6,20 @@ import type { MedLogEntry, Med } from '../lib/types'
 import { playChime } from '../lib/audio'
 import { Icon } from '../components/Icons'
 import { navigate } from '../router'
+import { localeForLanguage } from '../i18n'
+
+const DAY_KEYS = [
+  'med_day_sunday',
+  'med_day_monday',
+  'med_day_tuesday',
+  'med_day_wednesday',
+  'med_day_thursday',
+  'med_day_friday',
+  'med_day_saturday',
+] as const
 
 export function Meds() {
-  const { meds: stateMeds, t } = useApp()
+  const { meds: stateMeds, lang, t } = useApp()
   const [log, setLog] = useState<MedLogEntry[]>([])
   const [takenSlots, setTakenSlots] = useState<Record<string, string>>({})
 
@@ -19,33 +30,37 @@ export function Meds() {
       const todaySlots: Record<string, string> = {}
       for (const entry of entries) {
         if (entry.status === 'taken' && new Date(entry.ts).toDateString() === todayStr) {
-          const formatted = new Date(entry.ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          const formatted = new Date(entry.ts).toLocaleTimeString(localeForLanguage(lang), { hour: 'numeric', minute: '2-digit', hour12: true })
           todaySlots[`${entry.medId}-${entry.scheduledFor}`] = formatted
         }
       }
       setTakenSlots(todaySlots)
     })
-  }, [])
+  }, [lang])
 
   const medsToDisplay = useMemo(() => stateMeds.filter((m) => m.active), [stateMeds])
 
   const today = new Date()
-  const formattedDate = today.toLocaleDateString(undefined, {
+  const formattedDate = today.toLocaleDateString(localeForLanguage(lang), {
     weekday: 'long',
     month: 'long',
     day: 'numeric',
   })
 
   const dayOfWeek = today.getDay() // 0 = Sunday, 1 = Mon ...
-  const weekDays = [
-    { label: 'M', dayIndex: 1 },
-    { label: 'T', dayIndex: 2 },
-    { label: 'W', dayIndex: 3 },
-    { label: 'T', dayIndex: 4 },
-    { label: 'F', dayIndex: 5 },
-    { label: 'S', dayIndex: 6 },
-    { label: 'S', dayIndex: 0 },
-  ]
+  const weekDays = useMemo(() => {
+    const monday = new Date(today)
+    const mondayOffset = (today.getDay() + 6) % 7
+    monday.setDate(today.getDate() - mondayOffset)
+    return Array.from({ length: 7 }, (_, i) => {
+      const date = new Date(monday)
+      date.setDate(monday.getDate() + i)
+      return {
+        label: new Intl.DateTimeFormat(localeForLanguage(lang), { weekday: 'short' }).format(date),
+        dayIndex: date.getDay(),
+      }
+    })
+  }, [lang, today.toDateString()])
 
   // Map each day of current week to date string and check if meds were taken in log
   const weekDayAdherence = useMemo(() => {
@@ -69,7 +84,7 @@ export function Meds() {
 
   const handleTake = async (medId: string, timeStr: string) => {
     const key = `${medId}-${timeStr}`
-    const timeNow = new Date().toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true })
+    const timeNow = new Date().toLocaleTimeString(localeForLanguage(lang), { hour: 'numeric', minute: '2-digit', hour12: true })
     setTakenSlots((prev) => ({ ...prev, [key]: timeNow }))
 
     const med = medsToDisplay.find((m) => m.id === medId)
@@ -122,7 +137,7 @@ export function Meds() {
   }, [medsToDisplay])
 
   return (
-    <div className="page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="page patient-page meds-page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
       {/* Title + Date */}
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--ink)', marginBottom: 4 }}>
         {t('nav_meds')}
@@ -134,6 +149,7 @@ export function Meds() {
       {/* Weekly Progress Card */}
       <section
         className="card"
+        aria-labelledby="weekly-adherence-title"
         style={{
           borderRadius: 24,
           padding: '20px',
@@ -151,7 +167,7 @@ export function Meds() {
             marginBottom: 16,
           }}
         >
-          {t('adherence_week')}
+          <span id="weekly-adherence-title">{t('adherence_week')}</span>
         </span>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -163,8 +179,13 @@ export function Meds() {
             const hadTaken = weekDayAdherence[d.dayIndex]
 
             return (
-              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: isToday ? 'var(--ink)' : 'var(--ink-muted)' }}>
+              <div key={i} className="adherence-day" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                <span
+                  aria-label={isToday
+                    ? t('med_day_today', { day: fullDayName(d.dayIndex, t), today: t('med_today') })
+                    : fullDayName(d.dayIndex, t)}
+                  style={{ fontSize: 12, fontWeight: 600, color: isToday ? 'var(--ink)' : 'var(--ink-muted)' }}
+                >
                   {d.label}
                 </span>
 
@@ -183,7 +204,8 @@ export function Meds() {
                         fontSize: 14,
                         fontWeight: 700,
                       }}
-                      title="Taken"
+                      title={t('med_taken')}
+                      aria-label={t('med_day_taken', { day: fullDayName(d.dayIndex, t), status: t('med_taken') })}
                     >
                       ✓
                     </div>
@@ -200,13 +222,18 @@ export function Meds() {
                         justifyContent: 'center',
                         fontSize: 14,
                       }}
-                      title="No dose logged"
+                      title={t('med_no_dose')}
+                      aria-label={t('med_day_no_dose', { day: fullDayName(d.dayIndex, t), status: t('med_no_dose') })}
                     >
                       –
                     </div>
                   )
                 ) : isToday ? (
                   <div
+                    role="img"
+                    aria-label={hadTaken
+                      ? t('med_day_dose_taken_today', { day: fullDayName(d.dayIndex, t), status: t('med_dose_taken_today') })
+                      : t('med_day_dose_not_taken', { day: fullDayName(d.dayIndex, t), status: t('med_dose_not_taken') })}
                     style={{
                       width: 32,
                       height: 32,
@@ -222,6 +249,8 @@ export function Meds() {
                   </div>
                 ) : (
                   <div
+                    role="img"
+                    aria-label={t('med_day_upcoming', { day: fullDayName(d.dayIndex, t), status: t('med_upcoming') })}
                     style={{
                       width: 32,
                       height: 32,
@@ -239,7 +268,7 @@ export function Meds() {
       {morningSlots.length === 0 && afternoonSlots.length === 0 && nightSlots.length === 0 ? (
         /* Empty-state UI when no medications are added */
         <div
-          className="card"
+          className="card empty-state meds-empty-state"
           style={{
             borderRadius: 24,
             padding: '40px 24px',
@@ -295,11 +324,11 @@ export function Meds() {
         <>
           {/* Morning Section */}
           {morningSlots.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
+            <div className="med-period" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <span style={{ fontSize: 18 }}>☀️</span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
-                  Morning
+                  {t('med_morning')}
                 </h2>
               </div>
 
@@ -311,7 +340,7 @@ export function Meds() {
                 return (
                   <div
                     key={slotKey}
-                    className="card"
+                    className="card med-slot-card"
                     style={{
                       borderRadius: 24,
                       padding: '20px',
@@ -343,7 +372,7 @@ export function Meds() {
                           {med.dosage}
                         </p>
                         <span style={{ display: 'block', fontSize: 13, fontWeight: 600, color: isTaken ? 'var(--success-text)' : 'var(--ink-muted)', marginTop: 4 }}>
-                          {isTaken ? `✓ Taken at ${takenAt}` : `Scheduled for ${time}`}
+                          {isTaken ? `✓ ${t('med_taken_at', { time: takenAt })}` : t('med_scheduled_for', { time })}
                         </span>
                       </div>
                     </div>
@@ -353,6 +382,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         disabled
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: 'var(--border)',
                           color: 'var(--ink-secondary)',
@@ -369,6 +399,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         onClick={() => handleTake(med.id, time)}
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: '#15803D',
                           color: '#fff',
@@ -389,11 +420,11 @@ export function Meds() {
 
           {/* Afternoon Section */}
           {afternoonSlots.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
+            <div className="med-period" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <span style={{ fontSize: 18 }}>☀️</span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
-                  Afternoon
+                  {t('med_afternoon')}
                 </h2>
               </div>
 
@@ -405,7 +436,7 @@ export function Meds() {
                 return (
                   <div
                     key={slotKey}
-                    className="card"
+                    className="card med-slot-card"
                     style={{
                       borderRadius: 24,
                       padding: '20px',
@@ -453,7 +484,7 @@ export function Meds() {
                           {med.dosage}
                         </p>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--warn)', marginTop: 4 }}>
-                          🕒 {isTaken ? `Taken at ${takenAt}` : `Scheduled for ${time}`}
+                          🕒 {isTaken ? t('med_taken_at', { time: takenAt }) : t('med_scheduled_for', { time })}
                         </span>
                       </div>
                     </div>
@@ -463,6 +494,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         disabled
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: 'var(--border)',
                           color: 'var(--ink-secondary)',
@@ -479,6 +511,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         onClick={() => handleTake(med.id, time)}
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: '#15803D',
                           color: '#fff',
@@ -499,11 +532,11 @@ export function Meds() {
 
           {/* Night Section */}
           {nightSlots.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
+            <div className="med-period" style={{ marginBottom: 24 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                 <span style={{ fontSize: 18 }}>🌙</span>
                 <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
-                  Night
+                  {t('med_night')}
                 </h2>
               </div>
 
@@ -515,7 +548,7 @@ export function Meds() {
                 return (
                   <div
                     key={slotKey}
-                    className="card"
+                    className="card med-slot-card"
                     style={{
                       borderRadius: 24,
                       padding: '20px',
@@ -547,7 +580,7 @@ export function Meds() {
                           {med.dosage}
                         </p>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 13, fontWeight: 600, color: 'var(--ink-secondary)', marginTop: 4 }}>
-                          🕒 {isTaken ? `Taken at ${takenAt}` : `Scheduled for ${time}`}
+                          🕒 {isTaken ? t('med_taken_at', { time: takenAt }) : t('med_scheduled_for', { time })}
                         </span>
                       </div>
                     </div>
@@ -557,6 +590,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         disabled
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: 'var(--border)',
                           color: 'var(--ink-secondary)',
@@ -573,6 +607,7 @@ export function Meds() {
                         type="button"
                         className="btn btn-block"
                         onClick={() => handleTake(med.id, time)}
+                        aria-label={`${med.name}, ${time}: ${t('taken_btn')}`}
                         style={{
                           background: '#15803D',
                           color: '#fff',
@@ -594,4 +629,8 @@ export function Meds() {
       )}
     </div>
   )
+}
+
+function fullDayName(dayIndex: number, t: (key: string) => string): string {
+  return t(DAY_KEYS[dayIndex] ?? 'med_day_sunday')
 }

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { RoundHeader, useGameTimeout } from './shared'
 import { playChime } from '../lib/audio'
 import { useApp } from '../state'
 
@@ -41,6 +41,15 @@ const BASE_TALES: Record<string, { title: string; titleHi: string; text: string;
       { q: 'Did you enjoy storytelling sessions with elders in your youth?', options: ['Yes, by the fire', 'Fondly remember', 'Loved old stories'] },
     ],
   },
+}
+
+function splitStoryIntoPages(text: string): string[] {
+  const sentences = text.match(/[^.!?]+[.!?]+|[^.!?]+$/g)?.map((sentence) => sentence.trim()).filter(Boolean) ?? [text]
+  const pages: string[] = []
+  for (let i = 0; i < sentences.length; i += 2) {
+    pages.push(sentences.slice(i, i + 2).join(' '))
+  }
+  return pages.length > 0 ? pages : [text]
 }
 
 export function FestivalTales({ difficulty, logAction, complete }: GameProps) {
@@ -89,16 +98,23 @@ export function FestivalTales({ difficulty, logAction, complete }: GameProps) {
   }, [profile?.cultural.festivals, profile?.cultural.hobbies, profile?.cultural.community])
 
   const [stage, setStage] = useState<'story' | 'prompts'>('story')
+  const [storyPageIdx, setStoryPageIdx] = useState(0)
   const [promptIdx, setPromptIdx] = useState(0)
+  const scheduleTimeout = useGameTimeout()
+  const completionScheduledRef = useRef(false)
 
   const prompt = tale.prompts[promptIdx]
   const title = lang === 'hi' && tale.titleHi ? tale.titleHi : tale.title
+  const storyPages = useMemo(() => splitStoryIntoPages(tale.text), [tale.text])
+  const isLastStoryPage = storyPageIdx >= storyPages.length - 1
 
   function answer() {
+    if (completionScheduledRef.current) return
     void playChime()
     logAction('unprompted')
     if (promptIdx + 1 >= tale.prompts.length) {
-      setTimeout(() => complete({ itemsTotal: tale.prompts.length, itemsUnprompted: tale.prompts.length, completion: 1 }), 700)
+      completionScheduledRef.current = true
+      scheduleTimeout(() => complete({ itemsTotal: tale.prompts.length, itemsUnprompted: tale.prompts.length, completion: 1 }), 700)
     } else {
       setPromptIdx((i) => i + 1)
     }
@@ -107,20 +123,69 @@ export function FestivalTales({ difficulty, logAction, complete }: GameProps) {
   return (
     <div className="center-col story-panel">
       {stage === 'story' ? (
-        <RoundHeader now={1} total={2} unit="part" label={`📖 Part 1: Story (${title})`} />
+        <RoundHeader now={storyPageIdx + 1} total={storyPages.length} unit="page" label={`📖 ${title}`} />
       ) : (
         <RoundHeader now={promptIdx + 1} total={tale.prompts.length} unit="question" label="💭 Feelings & Memory" />
       )}
 
       <div className="card card-dark" style={{ width: '100%', marginTop: 'var(--s-xs)', position: 'relative' }}>
         <h3 className="title">{title}</h3>
-        <p className="lead" style={{ marginTop: 8 }}>{tale.text}</p>
+        <p className="caption" role="status" aria-live="polite" aria-atomic="true" style={{ marginTop: 8 }}>
+          {lang === 'hi' ? `कहानी का भाग ${storyPageIdx + 1} / ${storyPages.length}` : `Story page ${storyPageIdx + 1} of ${storyPages.length}`}
+        </p>
+        <p className="lead" style={{ marginTop: 8 }}>{storyPages[storyPageIdx]}</p>
+      </div>
+
+      {/* Caregiver Dyadic Reminiscence Spark (Lancet 2024 / Cochrane 2023) */}
+      <div
+        style={{
+          width: '100%',
+          marginTop: 'var(--s-md)',
+          padding: 'var(--s-md) var(--s-lg)',
+          borderRadius: 'var(--r-lg)',
+          background: 'rgba(217, 163, 67, 0.12)',
+          border: '1.5px solid rgba(201, 151, 0, 0.3)',
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: 'var(--s-sm)',
+        }}
+      >
+        <span style={{ fontSize: 24, lineHeight: 1 }}>💬</span>
+        <div>
+          <strong style={{ fontSize: 'var(--fs-caption)', color: 'var(--primary)', letterSpacing: '0.04em', textTransform: 'uppercase', display: 'block', marginBottom: 2 }}>
+            {profile?.caregiver?.name ? `${profile.caregiver.name} & Family Conversation Spark` : 'Shared Conversation Spark'}
+          </strong>
+          <p style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)', margin: 0, lineHeight: 1.4 }}>
+            {lang === 'hi'
+              ? `साथ में पूछें: "क्या आपको याद है जब हम इस त्योहार पर साथ थे? आपका सबसे पसंदीदा पकवान या गीत कौन सा था?"`
+              : `Ask together: "Do you remember celebrating this season together? What was your favorite dish, song, or sweet memory from those days?"`}
+          </p>
+        </div>
       </div>
 
       {stage === 'story' ? (
-        <button className="btn btn-primary btn-big mt-lg" onClick={() => setStage('prompts')}>
-          Tell us how you feel →
-        </button>
+        <div className="row mt-lg" style={{ justifyContent: 'center', gap: 'var(--s-sm)', flexWrap: 'wrap' }}>
+          {storyPageIdx > 0 && (
+            <button
+              className="btn btn-pearl btn-big"
+              onClick={() => setStoryPageIdx((page) => Math.max(0, page - 1))}
+              aria-label={lang === 'hi' ? 'पिछला कहानी भाग' : 'Go back to the previous story page'}
+            >
+              {lang === 'hi' ? '← पिछला' : '← Back'}
+            </button>
+          )}
+          <button
+            className="btn btn-primary btn-big"
+            onClick={() => (isLastStoryPage ? setStage('prompts') : setStoryPageIdx((page) => page + 1))}
+            aria-label={isLastStoryPage
+              ? (lang === 'hi' ? 'कहानी के बारे में अपनी भावना बताएं' : 'Share how the story makes you feel')
+              : (lang === 'hi' ? 'कहानी का अगला भाग पढ़ें' : 'Continue to the next story page')}
+          >
+            {isLastStoryPage
+              ? (lang === 'hi' ? 'आपको कैसा लगा? →' : 'Tell us how you feel →')
+              : (lang === 'hi' ? 'आगे →' : 'Continue →')}
+          </button>
+        </div>
       ) : (
         <>
           <p className="display-md mt-lg">{prompt.q}</p>

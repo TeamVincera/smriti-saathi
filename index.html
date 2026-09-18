@@ -2,9 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!-- Keep pinch-to-zoom available for low-vision users; viewport-fit covers iPhone safe areas. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#FBF8F2" />
-    <meta name="description" content="Smriti Sathi — AI-driven cognitive therapeutics for dementia. Offline-first." />
+    <meta name="description" content="Smriti Sathi — offline-first cognitive games, routines, reminders, and caregiver support for people living with memory difficulties." />
     <link rel="icon" type="image/svg+xml" href="./icons/icon.svg" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,11 +30,13 @@
           } catch (e) {}
         }
         document.addEventListener('selectstart', function(e) {
-          var tag = e.target && e.target.tagName;
-          if (tag !== 'INPUT' && tag !== 'TEXTAREA') {
+          var target = e.target;
+          var control = target && target.closest && target.closest('button, [role="button"]');
+          if (control) {
             e.preventDefault();
           }
         }, { passive: false });
+
       })();
     </script>
   </head>

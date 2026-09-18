@@ -28,6 +28,25 @@ test.describe('Cognitive Game Engines E2E Suite', () => {
     }
   })
 
+  test('shows one offline session coach after completing a game', async ({ page }) => {
+    await page.goto('/#/game/faces?d=0')
+    await expect(page.getByText(/Faces of Home|Question|Round|Who is your/i).first()).toBeVisible()
+
+    // Skip is an explicit, calm route through each round and avoids making
+    // the E2E depend on randomized answer order.
+    for (let round = 0; round < 5; round++) {
+      await page.getByRole('button', { name: 'Skip' }).click()
+    }
+
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.locator('.session-coach-card')).toBeVisible()
+    await expect(dialog.getByText('This reflection is made on this device from this session only.')).toBeVisible()
+    await expect(dialog.getByRole('button', { name: /Choose another activity|Choose a gentler activity|Try again later|Rest now/ })).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Home' })).toBeFocused()
+    await expect(page.getByRole('dialog')).toHaveCount(1)
+  })
+
   test('plays Morning Melodies instrument recognition game', async ({ page }) => {
     await page.goto('/#/game/melodies?d=0')
     await expect(page.getByText(/Morning Melodies|Listen/i).first()).toBeVisible()

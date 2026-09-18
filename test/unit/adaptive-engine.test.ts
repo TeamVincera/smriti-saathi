@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import {
   AdaptiveQuestionEngine,
   QuestionRepository,
@@ -205,5 +205,19 @@ describe('Offline-First Adaptive Question-Selection System (Contextual Bandit + 
     expect(profile.totalAttempts).toBe(0)
     expect(profile.recentQuestions.length).toBe(0)
     expect(Object.keys(profile.questionAttemptCounts).length).toBe(0)
+  })
+
+  it('returns a safe placeholder when the question repository is temporarily empty', () => {
+    const getAllQuestions = vi.spyOn(QuestionRepository, 'getAllQuestions').mockReturnValue([])
+    const getQuestionsByDomain = vi.spyOn(QuestionRepository, 'getQuestionsByDomain').mockReturnValue([])
+
+    const result = AdaptiveQuestionEngine.selectNextQuestion({ targetDomain: 'memory' })
+
+    expect(result.question.questionId).toBe('empty-repository')
+    expect(result.question.cognitiveDomain).toBe('memory')
+    expect(result.score).toBe(0)
+    expect(result.explanation.reason).toContain('No questions')
+    getAllQuestions.mockRestore()
+    getQuestionsByDomain.mockRestore()
   })
 })

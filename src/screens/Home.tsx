@@ -1,22 +1,36 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useRef, useState, useMemo } from 'react'
 import { useApp } from '../state'
 import { navigate } from '../router'
 import { GAMES, unlockedGames } from '../lib/games'
-import type { GameDef } from '../lib/games'
 import { recommendNextGame } from '../lib/ai'
-import { loadConfig } from '../lib/db'
-import { Icon } from '../components/Icons'
+import { buildDailyPlan } from '../lib/dailyPlan'
+import { DailyPlanCard } from '../components/DailyPlanCard'
 
-type CategoryFilter = 'all' | 'memory' | 'focus' | 'language'
+type CategoryFilter = 'all' | 'memory' | 'focus' | 'language' | 'auditory' | 'sequencing'
 
 export function Home() {
-  const { profile, sessionsToday, dailyGameLimit, sessions, lang, t } = useApp()
-  const [pick, setPick] = useState<{ gameId: string; difficulty: number; exploration: boolean } | null>(null)
+  const { profile, sessionsToday, dailyGameLimit, sessions, meds, dailyReminders, appointments, medlog, lang, t } = useApp()
+  // Keep the first paint stable while the offline recommendation loads.
+  const [pick, setPick] = useState<{ gameId: string; difficulty: number; exploration: boolean }>({
+    gameId: GAMES[0].id,
+    difficulty: 0,
+    exploration: false,
+  })
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('all')
   const [capNotice, setCapNotice] = useState(false)
+  const capDialogRef = useRef<HTMLDivElement>(null)
+  const capCloseButtonRef = useRef<HTMLButtonElement>(null)
+  const capTriggerRef = useRef<HTMLElement | null>(null)
 
   useEffect(() => {
-    void recommendNextGame().then(setPick)
+    void recommendNextGame().then((next) => {
+      if (!next) return
+      setPick((current) => (
+        current.gameId === next.gameId && current.difficulty === next.difficulty && current.exploration === next.exploration
+          ? current
+          : next
+      ))
+    })
   }, [])
 
   const completed = sessions.length
@@ -27,85 +41,105 @@ export function Home() {
 
   const patientName = profile?.patient.name?.trim() || ''
 
+  const dailyPlan = useMemo(() => buildDailyPlan({
+    meds: meds ?? [],
+    dailyReminders: dailyReminders ?? [],
+    appointments: appointments ?? [],
+    medlog: medlog ?? [],
+  }), [appointments, dailyReminders, medlog, meds])
+
   const filteredGames = useMemo(() => {
     if (activeCategory === 'all') return GAMES
     if (activeCategory === 'memory') {
-      return GAMES.filter((g) => g.id === 'faces' || g.id === 'tray' || g.id === 'picture' || g.id === 'pairs' || g.id === 'market')
+      return GAMES.filter((g) => ['faces', 'tray', 'picture', 'pairs', 'places', 'foods', 'market', 'objects'].includes(g.id))
     }
     if (activeCategory === 'focus') {
-      return GAMES.filter((g) => g.id === 'loom' || g.id === 'bamboo' || g.id === 'spot' || g.id === 'cheraw')
+      return GAMES.filter((g) => ['loom', 'bamboo', 'spot', 'oddone', 'safari'].includes(g.id))
     }
     if (activeCategory === 'language') {
-      return GAMES.filter((g) => g.id === 'word' || g.id === 'phrases' || g.id === 'tales')
+      return GAMES.filter((g) => ['word', 'phrases', 'tales'].includes(g.id))
+    }
+    if (activeCategory === 'auditory') {
+      return GAMES.filter((g) => ['melodies', 'sounds'].includes(g.id))
+    }
+    if (activeCategory === 'sequencing') {
+      return GAMES.filter((g) => ['sequence', 'teawalk', 'bridge', 'cheraw', 'garden'].includes(g.id))
     }
     return GAMES
   }, [activeCategory])
 
-  const activityList = [
-    {
-      id: 'faces',
-      title: lang === 'hi' ? 'घर के अपने चेहरे' : 'Faces of Home',
-      subtitle: lang === 'hi' ? 'शांत वातावरण में अपने प्रियजनों को पहचानें' : 'Identify your loved ones in a calm setting',
-      bg: 'var(--pastel-blue)',
-      border: '1.5px solid var(--pastel-blue-border)',
-      iconBg: 'var(--card)',
-      iconColor: 'var(--pastel-blue-text)',
-      glyph: '👨‍👩‍👧',
-    },
-    {
-      id: 'tray',
-      title: lang === 'hi' ? 'याददाश्त ट्रे' : 'Memory Tray',
-      subtitle: lang === 'hi' ? 'पारंपरिक घरेलू वस्तुएं याद करें' : 'Recall traditional household items',
-      bg: 'var(--pastel-green)',
-      border: '1.5px solid var(--pastel-green-border)',
-      iconBg: 'var(--card)',
-      iconColor: 'var(--pastel-green-text)',
-      glyph: '🪞',
-    },
-    {
-      id: 'melodies',
-      title: lang === 'hi' ? 'सुबह के सुर' : 'Morning Melodies',
-      subtitle: lang === 'hi' ? 'सुनें और धुन याद करें' : 'Listen and recall the tune',
-      bg: 'var(--pastel-purple)',
-      border: '1.5px solid var(--pastel-purple-border)',
-      iconBg: 'var(--card)',
-      iconColor: 'var(--pastel-purple-text)',
-      glyph: '🎵',
-    },
-    {
-      id: 'pairs',
-      title: lang === 'hi' ? 'परिवार एल्बम' : 'Family Album',
-      subtitle: lang === 'hi' ? 'फूलों के जोड़े मिलाएं' : 'Match the floral pairs',
-      bg: 'var(--pastel-blue)',
-      border: '1.5px solid var(--pastel-blue-border)',
-      iconBg: 'var(--card)',
-      iconColor: 'var(--pastel-blue-text)',
-      glyph: '🖼️',
-    },
-    {
-      id: 'foods',
-      title: lang === 'hi' ? 'पारंपरिक खाना' : 'Traditional Foods',
-      subtitle: lang === 'hi' ? 'कदम-दर-कदम रेसिपी और व्यंजन' : 'Step by step recipes and dishes',
-      bg: 'var(--pastel-peach)',
-      border: '1.5px solid var(--pastel-peach-border)',
-      iconBg: 'var(--card)',
-      iconColor: 'var(--pastel-peach-text)',
-      glyph: '🍲',
-    },
-  ]
+  const showCapNotice = (trigger?: HTMLElement) => {
+    capTriggerRef.current = trigger ?? (document.activeElement instanceof HTMLElement ? document.activeElement : null)
+    setCapNotice(true)
+  }
 
-  const launchGame = (gameId: string, diff = 0) => {
+  const launchGame = (gameId: string, diff = 0, trigger?: HTMLElement) => {
     if (capReached) {
-      setCapNotice(true)
+      showCapNotice(trigger)
       return
     }
     navigate(`/game/${gameId}?d=${diff}`)
   }
 
+  useEffect(() => {
+    if (!capNotice) {
+      const trigger = capTriggerRef.current
+      if (trigger) {
+        const frame = window.requestAnimationFrame(() => {
+          if (document.contains(trigger)) trigger.focus()
+          capTriggerRef.current = null
+        })
+        return () => window.cancelAnimationFrame(frame)
+      }
+      return
+    }
+
+    const frame = window.requestAnimationFrame(() => capCloseButtonRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [capNotice])
+
+  useEffect(() => {
+    if (!capNotice) return
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        setCapNotice(false)
+        return
+      }
+      if (event.key !== 'Tab') return
+
+      const dialog = capDialogRef.current
+      if (!dialog) return
+      const focusable = Array.from(dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')).filter(
+        (element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true'
+      )
+      if (focusable.length === 0) {
+        event.preventDefault()
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleDialogKeyDown)
+    return () => document.removeEventListener('keydown', handleDialogKeyDown)
+  }, [capNotice])
+
   return (
-    <div className="page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
+    <div className="page patient-page home-page enter-anim" style={{ maxWidth: 'var(--max-w)', margin: '0 auto', paddingBottom: 'calc(140px + env(safe-area-inset-bottom, 0px))' }}>
       {/* 1. Hero Greeting Banner */}
       <section
+        aria-labelledby="home-greeting-title"
+        className="home-hero"
         style={{
           background: 'var(--pastel-blue)',
           borderRadius: 24,
@@ -121,12 +155,12 @@ export function Home() {
       >
         <div style={{ zIndex: 2, flex: 1, minWidth: 0, paddingRight: 8 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-            <h2 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0, wordBreak: 'break-word' }}>
+            <h2 id="home-greeting-title" style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', margin: 0, wordBreak: 'break-word' }}>
               {patientName ? `${greeting}, ${patientName}` : `${greeting}!`}
             </h2>
           </div>
           <p style={{ fontSize: 14, color: 'var(--pastel-blue-text)', lineHeight: 1.4, margin: '0 0 10px 0', fontWeight: 500 }}>
-            {lang === 'hi' ? 'आज की शुरुआत एक हल्के मानसिक व्यायाम के साथ करें।' : 'Let\'s start the day with a gentle mind exercise.'}
+            {t('home_tagline')}
           </p>
           <span
             className="chip"
@@ -139,7 +173,7 @@ export function Home() {
               borderRadius: 12,
             }}
           >
-            🎯 {sessionsToday}/{dailyGameLimit} games
+            🎯 {t('sessions_today', { n: sessionsToday, max: dailyGameLimit })}
           </span>
         </div>
 
@@ -179,22 +213,27 @@ export function Home() {
         </div>
       </section>
 
+      <DailyPlanCard items={dailyPlan} lang={lang} t={t} />
+
       {/* 2. Recommended Game Card with Prominent PLAY CTA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+      <div className="home-section-heading" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
         <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: 0.5, textTransform: 'uppercase', margin: 0 }}>
           {t('today_game')}
         </h2>
         {capReached && (
           <span className="caption" style={{ color: 'var(--error)', fontWeight: 600 }}>
-            {lang === 'hi' ? 'दैनिक सीमा पूरी' : 'Daily limit reached'}
+            {t('home_daily_limit_reached')}
           </span>
         )}
       </div>
 
-      <section
-        className="card"
+      <button
+        type="button"
+        className="card home-recommended-card"
         data-testid="start-game-btn"
-        aria-label="Today's Game"
+        aria-label={t('aria_today_game')}
+        aria-describedby="today-game-description"
+        data-surface="recommended-game"
         style={{
           borderRadius: 24,
           padding: '24px 20px',
@@ -205,8 +244,11 @@ export function Home() {
           border: '1.5px solid var(--border)',
           background: 'var(--card)',
           boxShadow: '0 4px 16px rgba(0, 0, 0, 0.04)',
+          width: '100%',
+          fontFamily: 'inherit',
+          textAlign: 'left',
         }}
-        onClick={() => launchGame(today.id, pick?.difficulty ?? 0)}
+        onClick={(event) => launchGame(today.id, pick?.difficulty ?? 0, event.currentTarget)}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <span
@@ -222,16 +264,22 @@ export function Home() {
               border: '1px solid var(--pastel-yellow-border)',
             }}
           >
-            {lang === 'hi' ? 'अनुशंसित' : 'RECOMMENDED'}
+            {t('home_recommended')}
           </span>
           <span style={{ fontSize: 24 }}>{today.glyph}</span>
         </div>
 
         <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
-          {lang === 'hi' && today.nameHi ? today.nameHi : today.name}
+          {lang === 'hi' && today.nameHi
+            ? today.nameHi
+            : (lang === 'as' || lang === 'bn') && today.nameAs
+            ? today.nameAs
+            : lang === 'mni' && today.nameMni
+            ? today.nameMni
+            : today.name}
         </h3>
-        <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 18, maxWidth: 300, lineHeight: 1.4 }}>
-          {today.cultural || 'Identify your loved ones in a calm setting.'}
+        <p id="today-game-description" style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 18, maxWidth: 300, lineHeight: 1.4 }}>
+          {today.cultural || t('home_default_game_description')}
         </p>
 
         {/* Prominent Red PLAY Action Button */}
@@ -240,8 +288,7 @@ export function Home() {
             {today.domain}
           </span>
 
-          <button
-            type="button"
+          <span
             className="btn btn-secondary"
             style={{
               borderRadius: 24,
@@ -257,30 +304,30 @@ export function Home() {
               border: 'none',
               cursor: capReached ? 'default' : 'pointer',
             }}
-            onClick={(e) => {
-              e.stopPropagation()
-              launchGame(today.id, pick?.difficulty ?? 0)
-            }}
           >
             <span>▶</span>
             <span>{t('start')}</span>
-          </button>
+          </span>
         </div>
-      </section>
+      </button>
 
       {/* 3. Category Filter Chips */}
-      <div style={{ display: 'flex', gap: 10, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
+      <div className="game-filter" role="group" aria-label={t('aria_filter_games')} style={{ display: 'flex', gap: 10, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
         {[
-          { key: 'all', label: t('cat_all') },
-          { key: 'memory', label: t('cat_memory') },
-          { key: 'focus', label: t('cat_attention') },
+          { key: 'all' as const, label: t('cat_all') },
+          { key: 'memory' as const, label: t('cat_memory') },
+          { key: 'focus' as const, label: t('cat_attention') },
+          { key: 'language' as const, label: t('cat_language') },
+          { key: 'auditory' as const, label: t('cat_auditory') },
+          { key: 'sequencing' as const, label: t('cat_sequencing') },
         ].map((cat) => {
           const isActive = activeCategory === cat.key
           return (
             <button
               key={cat.key}
               type="button"
-              onClick={() => setActiveCategory(cat.key as CategoryFilter)}
+              aria-pressed={isActive}
+              onClick={() => setActiveCategory(cat.key)}
               style={{
                 background: isActive ? 'var(--primary)' : 'var(--surface-muted)',
                 color: isActive ? 'var(--ink-on-primary)' : 'var(--ink)',
@@ -302,104 +349,90 @@ export function Home() {
       </div>
 
       {/* 4. Activity List */}
-      <h2 style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
+      <h2 id="more-games-title" className="home-section-title" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink-muted)', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 12 }}>
         {t('more_games')}
       </h2>
-      <div className="tile-section responsive-games-grid" style={{ gap: 14 }}>
-        {activeCategory === 'all'
-          ? activityList.map((act) => (
-              <button
-                key={act.id}
-                type="button"
-                className="btn-block"
-                onClick={() => launchGame(act.id, 0)}
-                style={{
-                  background: act.bg,
-                  borderRadius: 20,
-                  padding: '16px 18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 16,
-                  cursor: capReached ? 'default' : 'pointer',
-                  opacity: capReached ? 0.75 : 1,
-                  border: act.border || '1.5px solid var(--border)',
-                  textAlign: 'left',
-                  transition: 'transform 0.12s ease',
-                }}
-              >
+      <div className="tile-section responsive-games-grid game-list" aria-labelledby="more-games-title" style={{ gap: 14 }}>
+        {filteredGames.map((g) => {
+          const isUnlocked = unlocked.some((u) => u.id === g.id)
+          const gameName =
+            lang === 'hi' && g.nameHi
+              ? g.nameHi
+              : (lang === 'as' || lang === 'bn') && g.nameAs
+              ? g.nameAs
+              : lang === 'mni' && g.nameMni
+              ? g.nameMni
+              : g.name
+          const gameCultural = lang === 'hi' && g.culturalHi ? g.culturalHi : g.cultural
+          return (
+            <button
+              key={g.id}
+              type="button"
+              className="card btn-block game-tile"
+              onClick={(event) => {
+                if (capReached) {
+                  showCapNotice(event.currentTarget)
+                  return
+                }
+                if (isUnlocked) {
+                  launchGame(g.id, 0, event.currentTarget)
+                }
+              }}
+              aria-label={`${gameName}${!isUnlocked ? ` (${t('game_locked')})` : ''}`}
+              style={{
+                borderRadius: 20,
+                padding: '16px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: isUnlocked ? (capReached ? 'default' : 'pointer') : 'default',
+                opacity: isUnlocked ? (capReached ? 0.75 : 1) : 0.6,
+                border: '1.5px solid var(--border)',
+                background: 'var(--card)',
+                textAlign: 'left',
+                transition: 'transform 0.12s ease',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
                 <div
                   style={{
-                    width: 52,
-                    height: 52,
+                    width: 48,
+                    height: 48,
                     borderRadius: 14,
-                    background: act.iconBg,
+                    background: 'var(--surface-muted)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: 26,
+                    fontSize: 24,
                     flexShrink: 0,
                     boxShadow: '0 2px 6px rgba(0, 0, 0, 0.04)',
                   }}
                 >
-                  {act.glyph}
+                  {g.glyph}
                 </div>
-                <div>
-                  <strong style={{ display: 'block', fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 2 }}>
-                    {act.title}
+                <div style={{ minWidth: 0 }}>
+                  <strong style={{ display: 'block', fontSize: 16, fontWeight: 700, color: 'var(--ink)', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {gameName}
                   </strong>
-                  <span style={{ fontSize: 13, color: 'var(--ink-secondary)' }}>
-                    {act.subtitle}
+                  <span style={{ fontSize: 13, color: 'var(--ink-secondary)', display: 'block', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {gameCultural || g.domain}
                   </span>
                 </div>
-              </button>
-            ))
-          : filteredGames.map((g) => {
-              const isUnlocked = unlocked.some((u) => u.id === g.id)
-              const gameName = lang === 'hi' && g.nameHi ? g.nameHi : g.name
-              const gameCultural = lang === 'hi' && g.culturalHi ? g.culturalHi : g.cultural
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  className="card btn-block"
-                  onClick={() => isUnlocked && !capReached && navigate(`/game/${g.id}?d=0`)}
-                  style={{
-                    borderRadius: 20,
-                    padding: '16px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    cursor: isUnlocked ? 'pointer' : 'default',
-                    border: 'none',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                    <div
-                      style={{
-                        width: 48,
-                        height: 48,
-                        borderRadius: 12,
-                        background: 'var(--surface-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 22,
-                      }}
-                    >
-                      {g.glyph}
-                    </div>
-                    <div>
-                      <strong style={{ display: 'block', fontSize: 16, color: 'var(--ink)', marginBottom: 2 }}>{gameName}</strong>
-                      <span style={{ fontSize: 13, color: 'var(--ink-muted)' }}>{gameCultural || (lang === 'hi' ? `चरण ${g.phase}` : `Phase ${g.phase}`)}</span>
-                    </div>
-                  </div>
-                  {!isUnlocked && (
-                    <span style={{ fontSize: 12, color: 'var(--ink-muted)' }}>🔒</span>
-                  )}
-                </button>
-              )
-            })}
+              </div>
+              <div style={{ flexShrink: 0, marginLeft: 12 }}>
+                {!isUnlocked ? (
+                  <span style={{ fontSize: 12, color: 'var(--ink-muted)', background: 'var(--surface-muted)', padding: '4px 8px', borderRadius: 8, fontWeight: 600 }}>
+                    🔒
+                  </span>
+                ) : (
+                  <span style={{ fontSize: 13, color: 'var(--primary)', fontWeight: 700 }}>
+                    ▶
+                  </span>
+                )}
+              </div>
+            </button>
+          )
+        })}
       </div>
 
       {/* Gentle Limit Reached Modal */}
@@ -407,6 +440,9 @@ export function Home() {
         <div
           role="dialog"
           aria-modal="true"
+          aria-labelledby="daily-limit-dialog-title"
+          aria-describedby="daily-limit-dialog-description"
+          ref={capDialogRef}
           style={{
             position: 'fixed',
             inset: 0,
@@ -434,14 +470,15 @@ export function Home() {
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontSize: 44, marginBottom: 12 }}>🌸</div>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
+            <h3 id="daily-limit-dialog-title" style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
               {t('praise_title')}
             </h3>
-            <p style={{ fontSize: 15, color: 'var(--ink-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
+            <p id="daily-limit-dialog-description" style={{ fontSize: 15, color: 'var(--ink-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
               {t('rest_now')}
             </p>
             <button
               type="button"
+              ref={capCloseButtonRef}
               className="btn btn-cta btn-block"
               onClick={() => setCapNotice(false)}
               style={{ minHeight: 48, borderRadius: 14, fontSize: 16, fontWeight: 700 }}

@@ -1,0 +1,60 @@
+[
+  {
+    "slide": 1,
+    "name": "Subtitle 3"
+  },
+  {
+    "slide": 1,
+    "name": "TextBox 9",
+    "geometry": true
+  },
+  {
+    "slide": 2,
+    "name": "Title 1"
+  },
+  {
+    "slide": 2,
+    "name": "Oval 9"
+  },
+  {
+    "slide": 3,
+    "name": "Oval 10"
+  },
+  {
+    "slide": 4,
+    "name": "Oval 11"
+  },
+  {
+    "slide": 5,
+    "name": "Oval 11"
+  },
+  {
+    "slide": 6,
+    "name": "Oval 8"
+  },
+  {
+    "slide": 2,
+    "name": "TextBox 8",
+    "geometry": true
+  },
+  {
+    "slide": 3,
+    "name": "TextBox 8",
+    "geometry": true
+  },
+  {
+    "slide": 4,
+    "name": "TextBox 8",
+    "geometry": true
+  },
+  {
+    "slide": 5,
+    "name": "TextBox 8",
+    "geometry": true
+  },
+  {
+    "slide": 6,
+    "name": "TextBox 8",
+    "geometry": true
+  }
+]

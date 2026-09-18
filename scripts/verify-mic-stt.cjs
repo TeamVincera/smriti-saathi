@@ -102,7 +102,7 @@ async function runMicTest(label, wavPath, devanagari) {
     const page = await ctx.newPage()
     page.on('response', async (r) => {
       const url = r.url()
-      if (url.includes('api.groq.com') && url.includes('transcriptions')) {
+      if (url.includes('/api/ai/transcribe')) {
         transcriptStatus = `HTTP ${r.status()}`
         if (r.ok()) {
           try {

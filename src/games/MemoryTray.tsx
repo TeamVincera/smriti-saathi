@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genMemoryTrayRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -24,7 +24,9 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
   const [timeLeft, setTimeLeft] = useState(VIEW_DURATION_SEC)
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [glowId, setGlowId] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
+  const viewIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Countdown timer for viewing phase
   useEffect(() => {
@@ -35,17 +37,26 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(iv)
+          if (viewIntervalRef.current === iv) viewIntervalRef.current = null
           setPhase('recall')
           return 0
         }
         return prev - 1
       })
     }, 1000)
+    viewIntervalRef.current = iv
 
-    return () => clearInterval(iv)
+    return () => {
+      clearInterval(iv)
+      if (viewIntervalRef.current === iv) viewIntervalRef.current = null
+    }
   }, [roundIdx, lang])
 
   function finishViewingEarly() {
+    if (viewIntervalRef.current !== null) {
+      clearInterval(viewIntervalRef.current)
+      viewIntervalRef.current = null
+    }
     setTimeLeft(0)
     setPhase('recall')
   }
@@ -66,7 +77,7 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
       playSoftCue()
     }
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPickedId(null)
       setGlowId(null)
       if (roundIdx + 1 >= TOTAL_ROUNDS) {
@@ -79,6 +90,13 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
   }
 
   const themeTitle = lang === 'hi' ? round.scenario.themeNameHi : round.scenario.themeName
+  const viewingStatus = phase === 'viewing'
+    ? lang === 'hi'
+      ? `थाली छिपने में ${timeLeft} सेकंड बाकी हैं।`
+      : `The tray will hide in ${timeLeft} seconds.`
+    : lang === 'hi'
+    ? 'याद करने का चरण तैयार है। अब सही वस्तु चुनें।'
+    : 'Recall is ready. Choose the item you remember.'
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
@@ -93,8 +111,13 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
                 {lang === 'hi' ? 'थाली की चीज़ों को ध्यान से देखिए' : 'Observe everything on the tray'}
               </h2>
             </div>
-            <button className="btn btn-primary" onClick={finishViewingEarly} style={{ minHeight: 48, padding: '0 18px', borderRadius: 'var(--r-pill)' }}>
-              I have seen them (Ready)
+            <button
+              className="btn btn-primary"
+              onClick={finishViewingEarly}
+              aria-label={lang === 'hi' ? 'वस्तुएँ देख लीं, याद करना शुरू करें' : 'I have seen them; start recall'}
+              style={{ minHeight: 48, padding: '0 18px', borderRadius: 'var(--r-pill)' }}
+            >
+              {lang === 'hi' ? 'देख लिया (तैयार)' : 'I have seen them (Ready)'}
             </button>
           </div>
 
@@ -142,8 +165,8 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
 
           {/* Progress timer bar */}
           <div style={{ width: '100%', maxWidth: 400, marginTop: 'var(--s-lg)', textAlign: 'center' }}>
-            <span className="caption" style={{ color: 'var(--ink-muted-48)' }}>
-              Hiding tray in {timeLeft} seconds…
+            <span className="caption" role="status" aria-live="polite" aria-atomic="true" style={{ color: 'var(--ink-muted-48)' }}>
+              {viewingStatus}
             </span>
             <div style={{ width: '100%', height: 8, background: 'var(--parchment)', borderRadius: 4, overflow: 'hidden', marginTop: 6 }}>
               <div
@@ -164,6 +187,9 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
             <h2 className="display-md" style={{ color: '#fff', margin: '4px 0 0 0' }}>
               {lang === 'hi' ? 'थाली में से कौन सी वस्तु यहाँ है?' : 'Which of these items was on the tray?'}
             </h2>
+            <p role="status" aria-live="polite" aria-atomic="true" style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+              {viewingStatus}
+            </p>
           </div>
 
           {/* Recall Choices Grid */}
@@ -177,8 +203,11 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
               return (
                 <button
                   key={item.id}
-                  className={`choice-card-big ${isSelected ? (isCorrect ? 'correct' : 'wrong') : ''} ${isGlow ? 'glow' : ''}`}
+                  className={`choice-card-big ${isSelected && isCorrect ? 'correct' : ''} ${isGlow ? 'glow' : ''}`}
                   onClick={() => pick(item)}
+                  aria-label={label}
+                  aria-pressed={isSelected}
+                  aria-describedby={pickedId ? 'tray-feedback' : undefined}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -186,8 +215,8 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
                     textAlign: 'center',
                     padding: 'var(--s-lg)',
                     borderRadius: 'var(--r-lg)',
-                    background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                    border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--error)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                    background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                    border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--primary)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                     boxShadow: 'var(--shadow-sm)',
                     minHeight: 200,
                     cursor: 'pointer',
@@ -195,11 +224,19 @@ export function MemoryTray({ difficulty, logAction, complete }: GameProps) {
                   }}
                 >
                   <span style={{ fontSize: 78, lineHeight: 1.1, marginBottom: 8 }}>{item.emoji}</span>
-                  <strong style={{ fontSize: 'var(--fs-body)', color: isSelected && !isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{label}</strong>
+                  <strong style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{label}</strong>
                 </button>
               )
             })}
           </div>
+
+          {pickedId && (
+            <p id="tray-feedback" role="status" aria-live="polite" aria-atomic="true" className="caption mt-md" style={{ textAlign: 'center', color: 'var(--ink-muted)' }}>
+              {pickedId === round.missingItem.id
+                ? (lang === 'hi' ? 'बहुत अच्छा! सही वस्तु याद रही।' : 'Well done. You remembered the right item.')
+                : (lang === 'hi' ? 'यह वस्तु नहीं थी। चमकते संकेत को देखकर फिर कोशिश करें।' : 'That was not the item. Follow the highlighted hint and try again.')}
+            </p>
+          )}
 
           <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted-48)' }}>
             Tap the item you remember seeing on the bamboo tray.

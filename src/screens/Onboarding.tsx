@@ -5,11 +5,14 @@ import type { Profile } from '../lib/types'
 export { sanitizePersonName } from '../lib/formatters'
 import { sanitizePersonName, calculateAgeFromDob } from '../lib/formatters'
 import { translate } from '../i18n'
-import { playChime, playTap } from '../lib/audio'
 import { Icon } from '../components/Icons'
+import { BaselineAssessment } from '../components/onboarding/BaselineAssessment'
 import { navigate } from '../router'
 import { seedBaselineForColdStart } from '../lib/ai'
+import { OnboardingProgress } from '../components/onboarding/OnboardingProgress'
+import { StepActions } from '../components/onboarding/StepActions'
 
+export const AVATARS = ['👵', '👴', '🧑', '👩', '👨']
 export const FESTIVALS = ['Bihu', 'Durga Puja', 'Ali-Aye-Ligang', 'Baishagu', 'Me-Dam-Me-Phi', 'Diwali', 'Chhath']
 export const HOBBIES = ['Gardening', 'Weaving', 'Singing', 'Cooking', 'Tea making', 'Storytelling', 'Folk songs']
 export const STATES = ['Assam', 'Meghalaya', 'Manipur', 'Nagaland', 'Mizoram', 'Tripura', 'Arunachal Pradesh', 'Sikkim', 'Other']
@@ -24,7 +27,7 @@ export const COUNTRY_CODES = [
 ]
 
 export function Onboarding() {
-  const { setProfile, t } = useApp()
+  const { setProfile } = useApp()
   const [lang, setLang] = useState<Language>('en')
   const [step, setStep] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -34,6 +37,23 @@ export function Onboarding() {
     return 0
   })
   const onbT = (key: string, vars?: Record<string, string | number>) => translate(lang, key, vars)
+  const progressLabelKey = step === 0
+    ? 'onb_lang_title'
+    : step === 1
+    ? 'onb_patient'
+    : step === 2
+    ? 'onb_clinical'
+    : step === 3
+    ? 'onb_cultural'
+    : step === 4
+    ? 'onb_faces_title'
+    : step === 5
+    ? 'onb_routine'
+    : step === 6
+    ? 'onb_caregiver'
+    : step === 7
+    ? 'pin_setup'
+    : 'onb_baseline'
 
   // Step 1: Patient details
   const [patient, setPatient] = useState({
@@ -172,7 +192,7 @@ export function Onboarding() {
         dob: patient.dob || undefined,
         age: patient.age ? parseInt(patient.age, 10) : undefined,
         photo: patient.photo || undefined,
-        avatar: patient.avatar || '👵',
+        avatar: (patient.avatar && patient.avatar !== '🧕') ? patient.avatar : '👵',
         languagesSpoken: lang ? [lang] : [],
         education: education || undefined,
       },
@@ -227,12 +247,19 @@ export function Onboarding() {
 
   return (
     <div className="app">
-      <main className="page-standalone enter-anim" key={step}>
+      <main className="page-standalone onboarding-shell enter-anim" key={step}>
+        <OnboardingProgress
+          step={step}
+          total={9}
+          label={onbT(progressLabelKey)}
+          caregiverHint={onbT('onb_caregiver_hint')}
+          lang={lang}
+        />
         {/* Step 0: Choose Your Language */}
         {step === 0 && (
           <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
             <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 700, color: 'var(--ink)', marginBottom: 12 }}>
-              Choose your language
+              {onbT('onb_lang_title')}
             </h1>
             <p style={{ fontSize: 16, color: 'var(--ink-secondary)', lineHeight: 1.5, marginBottom: 36, maxWidth: 360 }}>
               {onbT('onb_lang_sub2')}
@@ -253,7 +280,8 @@ export function Onboarding() {
                   <button
                     key={l.code}
                     type="button"
-                    aria-label={`Select language: ${l.native}`}
+                    aria-label={onbT('onb_select_language_aria', { language: l.native })}
+                    aria-pressed={isSelected}
                     data-testid={`lang-option-${l.code}`}
                     onClick={() => setLang(l.code)}
                     style={{
@@ -323,7 +351,10 @@ export function Onboarding() {
                 {onbT('onb_photo_title')}
               </h3>
 
-              <div
+              <button
+                type="button"
+                aria-label={onbT('onb_select_photo')}
+                data-testid="patient-photo-picker"
                 onClick={() => fileRef.current?.click()}
                 style={{
                   width: 110,
@@ -345,14 +376,16 @@ export function Onboarding() {
                 ) : (
                   <Icon name="cameraPlus" size={44} color="var(--ink-muted)" />
                 )}
-              </div>
+              </button>
               <input ref={fileRef} type="file" accept="image/*" hidden onChange={onPhoto} />
 
               <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                {['👵', '👴', '🧕', '🧑'].map((av) => (
+                {AVATARS.map((av) => (
                   <button
                     key={av}
                     type="button"
+                    aria-label={av}
+                    aria-pressed={patient.avatar === av}
                     className={`btn ${patient.avatar === av ? 'btn-primary' : 'btn-secondary'}`}
                     onClick={() => setPatient((p) => ({ ...p, avatar: av }))}
                     style={{ fontSize: 22, padding: '6px 14px', borderRadius: 12 }}
@@ -368,25 +401,28 @@ export function Onboarding() {
                 {onbT('onb_personal_details')}
               </h3>
 
+              <div className="onboarding-form-grid">
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-patient-name" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_full_name')}
                 </label>
                 <input
+                  id="onboarding-patient-name"
                   data-testid="patient-name-input"
                   className="input"
                   value={patient.name}
                   onChange={(e) => setPatient((p) => ({ ...p, name: sanitizePersonName(e.target.value) }))}
-                  placeholder="e.g. Anjali Sharma"
+                  placeholder={onbT('onb_name_placeholder')}
                   autoFocus
                 />
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-patient-dob" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_dob')}
                 </label>
                 <input
+                  id="onboarding-patient-dob"
                   data-testid="patient-dob-input"
                   className="input"
                   type="date"
@@ -397,23 +433,25 @@ export function Onboarding() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-patient-age" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_age')}
                 </label>
                 <input
+                  id="onboarding-patient-age"
                   data-testid="patient-age-input"
                   className="input"
                   value={patient.age}
                   onChange={(e) => setPatient((p) => ({ ...p, age: e.target.value.replace(/\D/g, '') }))}
-                  placeholder="e.g. 74"
+                  placeholder={onbT('onb_age_placeholder')}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-education" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_education')}
                 </label>
                 <select
+                  id="onboarding-education"
                   className="input"
                   value={education}
                   onChange={(e) => setEducation(e.target.value)}
@@ -427,23 +465,17 @@ export function Onboarding() {
                   <option value="Informal / Self-taught">{onbT('onb_edu_informal')}</option>
                 </select>
               </div>
+              </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(0)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-cta btn-block"
-                data-testid="step-next-btn"
-                disabled={patient.name.trim().length === 0}
-                onClick={() => setStep(2)}
-                style={{ borderRadius: 14, minHeight: 44 }}
-              >
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(0)}
+              onNext={() => setStep(2)}
+              nextDisabled={patient.name.trim().length === 0}
+              nextDisabledReason={onbT('onb_validation_patient_name')}
+            />
           </section>
         )}
 
@@ -458,7 +490,7 @@ export function Onboarding() {
             </p>
 
             <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>
+              <label id="onboarding-stage-label" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 10 }}>
                 {onbT('onb_dementia_stage')}
               </label>
               <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
@@ -466,6 +498,7 @@ export function Onboarding() {
                   <button
                     key={s}
                     type="button"
+                    aria-pressed={stage === s}
                     className={`btn ${stage === s ? 'btn-primary' : 'btn-secondary'}`}
                     style={{ flex: 1, minHeight: 48, borderRadius: 12 }}
                     onClick={() => setStage(s)}
@@ -476,10 +509,11 @@ export function Onboarding() {
               </div>
 
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-diagnosis-date" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_diagnosis_date')}
                 </label>
                 <input
+                  id="onboarding-diagnosis-date"
                   className="input"
                   type="date"
                   value={diagnosisDate}
@@ -488,26 +522,25 @@ export function Onboarding() {
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-doctor-contact" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_doctor_contact')}
                 </label>
                 <input
+                  id="onboarding-doctor-contact"
                   className="input"
                   value={doctorContact}
                   onChange={(e) => setDoctorContact(e.target.value)}
-                  placeholder="Doctor Name or Phone"
+                  placeholder={onbT('onb_doctor_placeholder')}
                 />
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(1)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(3)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(1)}
+              onNext={() => setStep(3)}
+            />
           </section>
         )}
 
@@ -523,10 +556,10 @@ export function Onboarding() {
 
             <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
               <div style={{ marginBottom: 20 }}>
-                <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
+                <label htmlFor="onboarding-state" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', marginBottom: 6 }}>
                   {onbT('onb_state_region')}
                 </label>
-                <select className="input" value={state_} onChange={(e) => setState_(e.target.value)}>
+                <select id="onboarding-state" className="input" value={state_} onChange={(e) => setState_(e.target.value)}>
                   <option value="">{onbT('onb_select_state')}</option>
                   {STATES.map((s) => <option key={s} value={s}>{s}</option>)}
                 </select>
@@ -543,6 +576,7 @@ export function Onboarding() {
                       <button
                         key={f}
                         type="button"
+                        aria-pressed={isSel}
                         className={`chip ${isSel ? 'chip-blue' : ''}`}
                         onClick={() => toggle(festivals, f, setFestivals)}
                         style={{ cursor: 'pointer' }}
@@ -556,7 +590,7 @@ export function Onboarding() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   <input
                     className="input"
-                    style={{ flex: 1, minHeight: 44, fontSize: 14 }}
+                    style={{ flex: 1, minHeight: 44, fontSize: 16 }}
                     placeholder={onbT('onb_festival_placeholder')}
                     value={customFestival}
                     onChange={(e) => setCustomFestival(e.target.value)}
@@ -590,6 +624,7 @@ export function Onboarding() {
                       <button
                         key={h}
                         type="button"
+                        aria-pressed={isSel}
                         className={`chip ${isSel ? 'chip-blue' : ''}`}
                         onClick={() => toggle(hobbies, h, setHobbies)}
                         style={{ cursor: 'pointer' }}
@@ -603,7 +638,7 @@ export function Onboarding() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   <input
                     className="input"
-                    style={{ flex: 1, minHeight: 44, fontSize: 14 }}
+                    style={{ flex: 1, minHeight: 44, fontSize: 16 }}
                     placeholder={onbT('onb_hobby_placeholder')}
                     value={customHobby}
                     onChange={(e) => setCustomHobby(e.target.value)}
@@ -627,14 +662,12 @@ export function Onboarding() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(2)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(4)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(2)}
+              onNext={() => setStep(4)}
+            />
           </section>
         )}
 
@@ -652,7 +685,7 @@ export function Onboarding() {
               {familyMembers.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '16px 8px' }}>
                   <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 16 }}>
-                    No family members added yet. You can add family members now or configure them later in the Caregiver Hub.
+                    {onbT('onb_no_photo')}
                   </p>
                   <button
                     type="button"
@@ -680,7 +713,9 @@ export function Onboarding() {
                       </div>
 
                       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: 20 }}>
-                        <div
+                        <button
+                          type="button"
+                          aria-label={onbT('onb_select_photo')}
                           onClick={() => famFileRefs.current[i]?.click()}
                           style={{
                             width: 100,
@@ -701,7 +736,7 @@ export function Onboarding() {
                           ) : (
                             <Icon name="cameraPlus" size={36} color="var(--ink)" />
                           )}
-                        </div>
+                        </button>
                         <input
                           ref={(el) => {
                             famFileRefs.current[i] = el
@@ -736,38 +771,40 @@ export function Onboarding() {
                       </div>
 
                       <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                        <label htmlFor={`onboarding-family-name-${i}`} style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                           {onbT('onb_full_name_label')}
                         </label>
                         <input
+                          id={`onboarding-family-name-${i}`}
                           className="input"
                           value={fm.name}
                           onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, name: sanitizePersonName(e.target.value) } : x)))}
-                          placeholder="e.g. Sarala, Rahul, Runima"
+                          placeholder={onbT('onb_member_placeholder')}
                           style={{ borderRadius: 10, border: '1.5px solid var(--ink)' }}
                         />
                       </div>
 
                       <div style={{ marginBottom: 16 }}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
+                        <label htmlFor={`onboarding-family-relation-${i}`} style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
                           {onbT('onb_relationship_label')}
                         </label>
                         <select
+                          id={`onboarding-family-relation-${i}`}
                           className="input"
                           value={fm.relation}
                           onChange={(e) => setFamilyMembers((arr) => arr.map((x, j) => (j === i ? { ...x, relation: e.target.value } : x)))}
                           style={{ borderRadius: 10, border: '1.5px solid var(--ink)' }}
                         >
                           <option value="">{onbT('onb_select_relation')}</option>
-                          <option value="Daughter">Daughter</option>
-                          <option value="Son">Son</option>
-                          <option value="Spouse">Spouse</option>
-                          <option value="Sister">Sister</option>
-                          <option value="Brother">Brother</option>
-                          <option value="Grandchild">Grandchild</option>
-                          <option value="Niece">Niece</option>
-                          <option value="Nephew">Nephew</option>
-                          <option value="Friend">Friend</option>
+                          <option value="Daughter">{onbT('onb_relation_daughter')}</option>
+                          <option value="Son">{onbT('onb_relation_son')}</option>
+                          <option value="Spouse">{onbT('onb_relation_spouse')}</option>
+                          <option value="Sister">{onbT('onb_relation_sister')}</option>
+                          <option value="Brother">{onbT('onb_relation_brother')}</option>
+                          <option value="Grandchild">{onbT('onb_relation_grandchild')}</option>
+                          <option value="Niece">{onbT('onb_relation_niece')}</option>
+                          <option value="Nephew">{onbT('onb_relation_nephew')}</option>
+                          <option value="Friend">{onbT('onb_relation_friend')}</option>
                         </select>
                       </div>
                     </div>
@@ -784,14 +821,12 @@ export function Onboarding() {
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(3)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(5)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(3)}
+              onNext={() => setStep(5)}
+            />
           </section>
         )}
 
@@ -814,10 +849,11 @@ export function Onboarding() {
                 { labelKey: 'onb_bedtime', key: 'sleep' },
               ] as const).map((item) => (
                 <div key={item.key} style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                  <label htmlFor={`onboarding-routine-${item.key}`} style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                     {onbT(item.labelKey)}
                   </label>
                   <input
+                    id={`onboarding-routine-${item.key}`}
                     className="input"
                     type="time"
                     value={routine[item.key as keyof typeof routine]}
@@ -827,14 +863,12 @@ export function Onboarding() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(4)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button type="button" className="btn btn-cta btn-block" data-testid="step-next-btn" onClick={() => setStep(6)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(4)}
+              onNext={() => setStep(6)}
+            />
           </section>
         )}
 
@@ -850,10 +884,11 @@ export function Onboarding() {
 
             <div className="card" style={{ width: '100%', borderRadius: 24, padding: 24, marginBottom: 24 }}>
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <label htmlFor="onboarding-caregiver-name" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {onbT('onb_cg_name')}
                 </label>
                 <input
+                  id="onboarding-caregiver-name"
                   className="input"
                   value={caregiver.name}
                   onChange={(e) => setCaregiver((c) => ({ ...c, name: sanitizePersonName(e.target.value) }))}
@@ -862,7 +897,7 @@ export function Onboarding() {
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <label htmlFor="onboarding-caregiver-phone" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {onbT('onb_cg_phone')}
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -878,6 +913,7 @@ export function Onboarding() {
                     ))}
                   </select>
                   <input
+                    id="onboarding-caregiver-phone"
                     data-testid="caregiver-phone-input"
                     className="input"
                     type="tel"
@@ -887,51 +923,53 @@ export function Onboarding() {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
                       setCaregiver((c) => ({ ...c, phone: digits }))
                     }}
-                    placeholder="10-digit mobile number"
+                    placeholder={onbT('onb_phone_placeholder')}
                   />
                 </div>
                 {caregiver.phone.length > 0 && caregiver.phone.length < 10 && (
-                  <p className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
+                  <p role="alert" aria-live="assertive" className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
                     {onbT('onb_phone_invalid')}
                   </p>
                 )}
               </div>
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <label htmlFor="onboarding-caregiver-relation" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {onbT('onb_cg_relation')}
                 </label>
                 <select
+                  id="onboarding-caregiver-relation"
                   className="input"
                   value={caregiver.relationship}
                   onChange={(e) => setCaregiver((c) => ({ ...c, relationship: e.target.value }))}
                 >
                   <option value="">{onbT('onb_select_relation')}</option>
-                  <option value="Son">Son</option>
-                  <option value="Daughter">Daughter</option>
-                  <option value="Spouse">Spouse</option>
-                  <option value="Grandchild">Grandchild</option>
-                  <option value="Other">Other</option>
+                  <option value="Son">{onbT('onb_relation_son')}</option>
+                  <option value="Daughter">{onbT('onb_relation_daughter')}</option>
+                  <option value="Spouse">{onbT('onb_relation_spouse')}</option>
+                  <option value="Grandchild">{onbT('onb_relation_grandchild')}</option>
+                  <option value="Other">{onbT('onb_relation_other')}</option>
                 </select>
               </div>
 
               <hr style={{ margin: '16px 0', border: 'none', borderTop: '1px solid var(--border)' }} />
 
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <label htmlFor="onboarding-asha-name" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {onbT('onb_asha_name')}
                 </label>
                 <input
+                  id="onboarding-asha-name"
                   data-testid="asha-name-input"
                   className="input"
                   value={asha.name}
                   onChange={(e) => setAsha((a) => ({ ...a, name: sanitizePersonName(e.target.value) }))}
-                  placeholder="ASHA worker name"
+                  placeholder={onbT('onb_asha_name_placeholder')}
                 />
               </div>
 
               <div>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
+                <label htmlFor="onboarding-asha-phone" style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 6 }}>
                   {onbT('onb_asha_phone')}
                 </label>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -947,6 +985,7 @@ export function Onboarding() {
                     ))}
                   </select>
                   <input
+                    id="onboarding-asha-phone"
                     data-testid="asha-phone-input"
                     className="input"
                     type="tel"
@@ -956,37 +995,32 @@ export function Onboarding() {
                       const digits = e.target.value.replace(/\D/g, '').slice(0, 10)
                       setAsha((a) => ({ ...a, phone: digits }))
                     }}
-                    placeholder="10-digit phone number"
+                    placeholder={onbT('onb_phone_placeholder')}
                   />
                 </div>
                 {asha.phone.length > 0 && asha.phone.length < 10 && (
-                  <p className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
+                  <p role="alert" aria-live="assertive" className="caption" style={{ color: 'var(--error)', marginTop: 6, fontWeight: 600, textAlign: 'left' }}>
                     {onbT('onb_phone_invalid')}
                   </p>
                 )}
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(5)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-cta btn-block"
-                data-testid="step-next-btn"
-                disabled={
-                  caregiver.name.trim().length === 0 ||
-                  caregiver.phone.length !== 10 ||
-                  (asha.phone.length > 0 && asha.phone.length !== 10) ||
-                  !caregiver.relationship
-                }
-                onClick={() => setStep(7)}
-                style={{ borderRadius: 14, minHeight: 44 }}
-              >
-                {onbT('next')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={onbT('next')}
+              onBack={() => setStep(5)}
+              onNext={() => setStep(7)}
+              nextDisabled={
+                caregiver.name.trim().length === 0 ||
+                caregiver.phone.length !== 10 ||
+                (asha.phone.length > 0 && asha.phone.length !== 10) ||
+                !caregiver.relationship
+              }
+              nextDisabledReason={caregiver.phone.length > 0 && caregiver.phone.length !== 10
+                ? onbT('onb_phone_invalid')
+                : onbT('onb_validation_caregiver')}
+            />
           </section>
         )}
 
@@ -1077,30 +1111,34 @@ export function Onboarding() {
 
             <div className="card" style={{ width: '100%', borderRadius: 24, padding: '24px 20px', marginBottom: 24, textAlign: 'center', overflow: 'hidden' }}>
               {/* Sliding row panels */}
-              <div style={{ width: '100%', overflow: 'hidden' }}>
+              {/* `clip` keeps Firefox from auto-scrolling this off-screen panel when
+                  its hidden confirmation input receives focus. */}
+              <div style={{ width: '100%', overflow: 'clip' }}>
                 <div
+                  data-testid="pin-panel-track"
                   style={{
                     display: 'flex',
                     flexDirection: 'row',
-                    width: '100%',
+                    width: '200%',
+                    transform: activePinField === 'pin' ? 'translateX(0)' : 'translateX(-50%)',
+                    transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                   }}
                 >
                   {/* Panel 1: Set PIN */}
                   <div
+                    data-testid="pin-panel-set"
                     style={{
-                      minWidth: '100%',
-                      width: '100%',
+                      minWidth: '50%',
+                      width: '50%',
                       flexShrink: 0,
                       boxSizing: 'border-box',
-                      transform: activePinField === 'pin' ? 'translateX(0%)' : 'translateX(-100%)',
-                      transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
-                    <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 4 }}>
-                      {onbT('onb_pin_label')} (4 Digits)
+                    <label htmlFor="onboarding-pin" style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase', marginBottom: 4 }}>
+                      {onbT('onb_pin_label')} {onbT('onb_pin_digits')}
                     </label>
                     <p style={{ fontSize: 13, color: 'var(--ink-secondary)', marginBottom: 12 }}>
-                      Enter a 4-digit security code
+                      {onbT('onb_pin_instruction')}
                     </p>
 
                     <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto 16px' }}>
@@ -1143,6 +1181,7 @@ export function Onboarding() {
 
                       {/* Hidden Accessible Input for Keyboard & E2E */}
                       <input
+                        id="onboarding-pin"
                         ref={pinInputRef}
                         type="password"
                         inputMode="numeric"
@@ -1175,19 +1214,18 @@ export function Onboarding() {
                     </div>
 
                     <p className="caption" style={{ color: 'var(--ink-secondary)', minHeight: 20 }}>
-                      {pin.length === 4 ? '✓ 4 digits entered — auto-advancing...' : 'Tap digits below or type on keyboard'}
+                      {pin.length === 4 ? onbT('onb_pin_progress', { n: pin.length }) : onbT('onb_pin_keyboard_hint')}
                     </p>
                   </div>
 
                   {/* Panel 2: Confirm PIN */}
                   <div
+                    data-testid="pin-panel-confirm"
                     style={{
-                      minWidth: '100%',
-                      width: '100%',
+                      minWidth: '50%',
+                      width: '50%',
                       flexShrink: 0,
                       boxSizing: 'border-box',
-                      transform: activePinField === 'pin' ? 'translateX(0%)' : 'translateX(-100%)',
-                      transition: 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 }}>
@@ -1210,14 +1248,14 @@ export function Onboarding() {
                           padding: '2px 6px',
                         }}
                       >
-                        ← Edit PIN
+                        {onbT('onb_pin_edit')}
                       </button>
-                      <label style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase' }}>
+                      <label htmlFor="onboarding-confirm-pin" style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', textTransform: 'uppercase' }}>
                         {onbT('onb_confirm_pin')}
                       </label>
                     </div>
                     <p style={{ fontSize: 13, color: 'var(--ink-secondary)', marginBottom: 12 }}>
-                      Re-enter your 4-digit code to confirm
+                      {onbT('onb_pin_confirm_instruction')}
                     </p>
 
                     <div style={{ position: 'relative', width: '100%', maxWidth: 280, margin: '0 auto 16px' }}>
@@ -1270,6 +1308,7 @@ export function Onboarding() {
 
                       {/* Hidden Accessible Input for Keyboard & E2E */}
                       <input
+                        id="onboarding-confirm-pin"
                         ref={confirmInputRef}
                         type="password"
                         inputMode="numeric"
@@ -1303,18 +1342,18 @@ export function Onboarding() {
 
                     <div style={{ minHeight: 24, marginBottom: 4 }}>
                       {pin.length === 4 && confirmPin.length === 4 && pin === confirmPin && (
-                        <p className="caption" style={{ color: 'var(--success, #15803D)', fontWeight: 700 }}>
-                          ✓ PIN confirmed successfully!
+                        <p role="status" aria-live="polite" className="caption" style={{ color: 'var(--success, #15803D)', fontWeight: 700 }}>
+                          {onbT('onb_pin_confirmed')}
                         </p>
                       )}
                       {pin.length === 4 && confirmPin.length === 4 && pin !== confirmPin && (
-                        <p className="caption" style={{ color: 'var(--error)', fontWeight: 600 }}>
+                        <p role="alert" aria-live="assertive" className="caption" style={{ color: 'var(--error)', fontWeight: 600 }}>
                           {onbT('onb_pin_mismatch')}
                         </p>
                       )}
                       {confirmPin.length < 4 && (
                         <p className="caption" style={{ color: 'var(--ink-secondary)' }}>
-                          Enter the matching 4 digits
+                          {onbT('onb_pin_matching')}
                         </p>
                       )}
                     </div>
@@ -1363,7 +1402,7 @@ export function Onboarding() {
                     color: 'var(--ink-secondary)',
                   }}
                 >
-                  {activePinField === 'confirm' ? '← Back' : 'Clear'}
+                  {activePinField === 'confirm' ? onbT('onb_pin_back') : onbT('onb_pin_clear')}
                 </button>
                 <button
                   type="button"
@@ -1398,21 +1437,16 @@ export function Onboarding() {
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: '100%' }}>
-              <button type="button" className="btn btn-secondary btn-block" onClick={() => setStep(6)} style={{ borderRadius: 14, minHeight: 44 }}>
-                {onbT('back')}
-              </button>
-              <button
-                type="button"
-                className="btn btn-cta btn-block"
-                data-testid="step-next-btn"
-                disabled={pin.length > 0 && (pin.length < 4 || confirmPin !== pin)}
-                onClick={() => setStep(8)}
-                style={{ borderRadius: 14, minHeight: 44 }}
-              >
-                {pin.length === 4 && confirmPin === pin ? onbT('next') : onbT('skip') + ' & ' + onbT('done')}
-              </button>
-            </div>
+            <StepActions
+              backLabel={onbT('back')}
+              nextLabel={pin.length === 4 && confirmPin === pin ? onbT('next') : onbT('skip') + ' & ' + onbT('done')}
+              onBack={() => setStep(6)}
+              onNext={() => setStep(8)}
+              nextDisabled={pin.length > 0 && (pin.length < 4 || confirmPin !== pin)}
+              nextDisabledReason={pin.length === 4 && confirmPin !== pin
+                ? onbT('onb_pin_mismatch')
+                : onbT('onb_validation_pin')}
+            />
           </section>
         )}
 
@@ -1420,145 +1454,11 @@ export function Onboarding() {
         {step === 8 && (
           <BaselineAssessment
             t={(k: string) => translate(lang, k)}
-            lang={lang ?? 'en'}
-            familyMembers={familyMembers.filter((f) => f && f.name && f.name.trim().length > 0)}
             onFinish={(r) => void finishBaseline(r)}
             onBack={() => setStep(7)}
           />
         )}
       </main>
     </div>
-  )
-}
-
-function BaselineAssessment({
-  t,
-  lang,
-  familyMembers,
-  onFinish,
-  onBack,
-}: {
-  t: (k: string, vars?: Record<string, string | number>) => string
-  lang: Language
-  familyMembers: { name: string; relation: string; emoji: string; photo?: string }[]
-  onFinish: (r: { accuracy: number; latencyMs: number }) => void
-  onBack: () => void
-}) {
-  const [round, setRound] = useState(0)
-  const [correct, setCorrect] = useState(0)
-  const [latencies, setLatencies] = useState<number[]>([])
-  const [done, setDone] = useState(false)
-  const startTs = useRef(Date.now())
-
-  useEffect(() => {
-    startTs.current = Date.now()
-  }, [round])
-
-  const questions = [
-    { promptKey: 'onb_baseline_p1', instructionKey: 'onb_baseline_instr1', options: ['🌙', '☀️', '⭐'], answer: 1 },
-    { promptKey: 'onb_baseline_p2', instructionKey: 'onb_baseline_instr2', options: ['🍃', '🍎', '🐟'], answer: 0 },
-    { promptKey: 'onb_baseline_p3', instructionKey: 'onb_baseline_instr3', options: ['🚗', '🌸', '🏠'], answer: 1 },
-  ]
-
-  const q = questions[round] ?? questions[0]
-
-  const handlePick = (idx: number) => {
-    const lat = Date.now() - startTs.current
-    const isCorrect = idx === q.answer
-    playChime()
-    const nextCorrect = correct + (isCorrect ? 1 : 0)
-    const nextLatencies = [...latencies, lat]
-
-    if (round < questions.length - 1) {
-      setCorrect(nextCorrect)
-      setLatencies(nextLatencies)
-      setRound((r) => r + 1)
-    } else {
-      setDone(true)
-      const avgLat = nextLatencies.reduce((a, b) => a + b, 0) / nextLatencies.length
-      const acc = nextCorrect / questions.length
-      setCorrect(nextCorrect)
-      setLatencies(nextLatencies)
-    }
-  }
-
-  const handleComplete = () => {
-    const avgLat = latencies.length > 0 ? latencies.reduce((a, b) => a + b, 0) / latencies.length : 800
-    const acc = correct / questions.length
-    onFinish({ accuracy: acc, latencyMs: avgLat })
-  }
-
-  return (
-    <section style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 700, color: 'var(--ink)', marginBottom: 8 }}>
-        {t('onb_baseline_title')}
-      </h1>
-
-      <div
-        className="instruction-bar"
-        style={{
-          background: 'var(--success-soft)',
-          color: 'var(--success-text)',
-          fontSize: 13,
-          fontWeight: 600,
-          padding: '8px 16px',
-          borderRadius: 12,
-          marginBottom: 16,
-          display: 'inline-block',
-          border: '1px solid #9FD4B4',
-        }}
-      >
-        {t(q.instructionKey)}
-      </div>
-
-      <p style={{ fontSize: 14, color: 'var(--ink-secondary)', marginBottom: 24 }}>
-        {t('round_counter', { n: round + 1, total: questions.length })}
-      </p>
-
-      <div className="card" style={{ width: '100%', borderRadius: 24, padding: 32, marginBottom: 24 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 600, color: 'var(--ink)', marginBottom: 28 }}>
-          {t(q.promptKey)}
-        </h2>
-
-        <div style={{ display: 'flex', justifyContent: 'center', gap: 16, marginBottom: done ? 24 : 0 }}>
-          {q.options.map((opt, i) => (
-            <button
-              key={i}
-              type="button"
-              className="btn btn-secondary choice-btn item-tile"
-              onClick={() => handlePick(i)}
-              style={{
-                width: 80,
-                height: 80,
-                fontSize: 36,
-                borderRadius: 20,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-                cursor: 'pointer',
-              }}
-            >
-              {opt}
-            </button>
-          ))}
-        </div>
-
-        {done && (
-          <button
-            type="button"
-            className="btn btn-cta btn-block"
-            onClick={handleComplete}
-            style={{ borderRadius: 14, minHeight: 48, marginTop: 12 }}
-          >
-            Done
-          </button>
-        )}
-      </div>
-
-      <button type="button" className="btn btn-secondary btn-block" onClick={onBack} style={{ borderRadius: 14, minHeight: 44 }}>
-        {t('back')}
-      </button>
-    </section>
   )
 }

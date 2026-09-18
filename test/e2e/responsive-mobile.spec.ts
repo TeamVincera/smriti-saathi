@@ -21,8 +21,8 @@ test.describe('Responsive Layout & Touch UX Suite', () => {
     const box = await homeTab.boundingBox()
     expect(box).not.toBeNull()
     if (box) {
-      expect(box.height).toBeGreaterThanOrEqual(40)
-      expect(box.width).toBeGreaterThanOrEqual(40)
+      expect(Math.round(box.height)).toBeGreaterThanOrEqual(48)
+      expect(Math.round(box.width)).toBeGreaterThanOrEqual(48)
     }
 
     // Verify main card doesn't overflow horizontally
@@ -36,8 +36,8 @@ test.describe('Responsive Layout & Touch UX Suite', () => {
 
   test('verifies modal dialogues and game hosts fit within viewport', async ({ page }) => {
     await page.goto('/#/reminders')
-    await expect(page.getByText(/DAILY REMINDERS & SCHEDULE/i)).toBeVisible({ timeout: 10000 })
-    await expect(page.getByRole('button', { name: /Daily Reminders/i })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('heading', { name: /Reminders/i })).toBeVisible({ timeout: 10000 })
+    await expect(page.getByRole('tab', { name: /Reminders/i })).toBeVisible({ timeout: 10000 })
 
     const pageContainer = page.locator('.page')
     await expect(pageContainer).toBeVisible({ timeout: 10000 })
@@ -45,6 +45,18 @@ test.describe('Responsive Layout & Touch UX Suite', () => {
     const viewport = page.viewportSize()
     if (box && viewport) {
       expect(box.width).toBeLessThanOrEqual(viewport.width)
+    }
+  })
+
+  test('keeps game listen controls at a full touch target', async ({ page }) => {
+    await page.goto('/#/game/sequence')
+    const listen = page.locator('.instruction-bar .icon-btn').first()
+    await expect(listen).toBeVisible({ timeout: 10000 })
+    const box = await listen.boundingBox()
+    expect(box).not.toBeNull()
+    if (box) {
+      expect(Math.round(box.width)).toBeGreaterThanOrEqual(48)
+      expect(Math.round(box.height)).toBeGreaterThanOrEqual(48)
     }
   })
 })

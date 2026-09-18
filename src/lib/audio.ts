@@ -526,8 +526,13 @@ export function playTap() {
 }
 
 export function playMelody(pattern: (Instrument | string)[], gapSec = 1.4) {
+  unlockAudio()
   pattern.forEach((inst, i) => {
-    setTimeout(() => playInstrument(inst), i * gapSec * 1000)
+    const timer = setTimeout(() => {
+      activeTimers.delete(timer)
+      playInstrument(inst)
+    }, Math.max(0, i * gapSec * 1000))
+    activeTimers.add(timer)
   })
 }
 
@@ -713,6 +718,11 @@ export function startAlarmSound() {
     tone(659.26, 'sine', 0.55, 0.40, 0.2)
     tone(783.99, 'sine', 0.75, 0.45, 0.4)
     tone(1046.5, 'sine', 0.9, 0.35, 0.65)
+    try {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        navigator.vibrate([300, 150, 300])
+      }
+    } catch {}
   }
   playPulse()
   alarmInterval = setInterval(playPulse, 2400)
@@ -723,5 +733,10 @@ export function stopAlarmSound() {
     clearInterval(alarmInterval)
     alarmInterval = null
   }
+  try {
+    if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+      navigator.vibrate(0)
+    }
+  } catch {}
   stopAllAudio()
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genPairsBoard } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -21,9 +21,11 @@ export function OrchidPairs({ logAction, complete }: GameProps) {
   const [flipped, setFlipped] = useState<number[]>([])
   const [matched, setMatched] = useState<string[]>([])
   const [mismatched, setMismatched] = useState<number[]>([])
+  const [seenIndices, setSeenIndices] = useState<number[]>([])
   const missesThisBoard = useRef(0)
   const totalPairs = useRef(0)
   const cumulativeMatched = useRef(0)
+  const scheduleTimeout = useGameTimeout()
 
   useEffect(() => {
     totalPairs.current += board.pairCount
@@ -31,6 +33,9 @@ export function OrchidPairs({ logAction, complete }: GameProps) {
 
   function tap(i: number, v: string) {
     if (flipped.includes(i) || matched.includes(v) || mismatched.length > 0) return
+
+    setSeenIndices((prev) => (prev.includes(i) ? prev : [...prev, i]))
+
     if (flipped.length === 1) {
       const first = flipped[0]
       const firstVal = board.cards[first].v
@@ -43,11 +48,12 @@ export function OrchidPairs({ logAction, complete }: GameProps) {
         logAction('unprompted')
         if (nextMatched.length >= board.pairCount) {
           recordAnswer(DOMAIN, level, missesThisBoard.current <= board.pairCount)
-          setTimeout(() => {
+          scheduleTimeout(() => {
             if (boardIdx + 1 < TOTAL_BOARDS) {
               setLevel(nextLevel(DOMAIN))
               setBoardIdx((b) => b + 1)
               setMatched([])
+              setSeenIndices([])
               missesThisBoard.current = 0
             } else {
               const total = Math.max(totalPairs.current, 1)
@@ -61,22 +67,24 @@ export function OrchidPairs({ logAction, complete }: GameProps) {
         }
         return
       }
-      // Gentle mismatch: both cards visibly turn soft red and close again after a breath.
+      // Gentle mismatch: clinical literature (Lampit 2024, Cochrane 2023) shows MCI elders
+      // require 1.5–2.5s encoding latency. 2000ms allows calm visual consolidation.
       missesThisBoard.current++
       logAction('cued')
       playSoftCue()
       setFlipped([first, i])
       setMismatched([first, i])
-      setTimeout(() => {
+      scheduleTimeout(() => {
         setFlipped([])
         setMismatched([])
-      }, 950)
+      }, 2000)
       return
     }
     setFlipped([i])
   }
 
   const cols = board.cards.length <= 4 ? 2 : board.cards.length <= 6 ? 3 : 4
+  const activeFlippedVal = flipped.length === 1 ? board.cards[flipped[0]]?.v : null
 
   return (
     <div className="center-col" style={{ width: '100%' }}>
@@ -87,25 +95,47 @@ export function OrchidPairs({ logAction, complete }: GameProps) {
           const isMatched = matched.includes(c.v)
           const isOpen = flipped.includes(c.i) || isMatched
           const isWrong = mismatched.includes(c.i)
+          const isSeenHint = !isOpen && activeFlippedVal === c.v && seenIndices.includes(c.i)
+
           return (
             <button
               key={c.i}
-              className={`scene-cell ${isMatched ? 'found' : ''} ${isWrong ? 'wrong' : ''}`}
+              className={`scene-cell ${isMatched ? 'found' : ''} ${isWrong ? 'answer-guidance' : ''}`}
+              aria-pressed={isMatched || isOpen}
+              data-answer-state={isMatched ? 'correct' : isWrong ? 'guidance' : isOpen ? 'open' : 'idle'}
               style={{
                 height: 88,
                 fontSize: isOpen ? 40 : 28,
-                background: isMatched ? 'var(--success-soft)' : isWrong ? 'var(--error-soft)' : isOpen ? 'var(--card)' : 'var(--surface-muted)',
-                borderColor: isMatched ? 'var(--success)' : isWrong ? 'var(--error)' : 'var(--border)',
+                background: isMatched
+                  ? 'var(--success-soft)'
+                  : isWrong
+                  ? 'var(--surface-muted)'
+                  : isOpen
+                  ? 'var(--card)'
+                  : isSeenHint
+                  ? 'rgba(217, 163, 67, 0.12)'
+                  : 'var(--surface-muted)',
+                borderColor: isMatched
+                  ? 'var(--success)'
+                  : isWrong
+                  ? 'var(--primary)'
+                  : isSeenHint
+                  ? 'var(--muga-gold, #C99700)'
+                  : 'var(--border)',
+                borderWidth: isSeenHint ? 2 : 1,
+                borderStyle: isSeenHint ? 'dashed' : 'solid',
+                boxShadow: isSeenHint ? '0 0 12px rgba(201, 151, 0, 0.35)' : undefined,
                 transition: 'all 0.2s ease',
               }}
               onClick={() => tap(c.i, c.v)}
-              aria-label={`card ${c.i + 1}`}
+              aria-label={isMatched ? `card ${c.i + 1}, matched` : isOpen ? `card ${c.i + 1}, ${c.v}` : `card ${c.i + 1}, face down`}
             >
               {isOpen ? c.v : '🌱'}
             </button>
           )
         })}
       </div>
+      <AnswerFeedback state={mismatched.length > 0 ? 'guidance' : matched.length > 0 ? 'success' : 'idle'} />
       <p className="caption">No hurry — every flower opens in its own time.</p>
     </div>
   )

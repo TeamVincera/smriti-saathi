@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import type { Rng } from '../lib/rng'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -44,6 +44,7 @@ export function CherawSteps({ logAction, complete }: GameProps) {
   const cumulativeHits = useRef(0)
   const totalBeats = useRef(0)
   const doneRef = useRef(false)
+  const scheduleTimeout = useGameTimeout()
 
   useEffect(() => {
     totalBeats.current += pattern.length
@@ -55,14 +56,14 @@ export function CherawSteps({ logAction, complete }: GameProps) {
     let t: ReturnType<typeof setTimeout>
     const run = (i: number) => {
       if (cancelled || i >= pattern.length) {
-        if (!cancelled) setTimeout(() => setPhase('play'), 500)
+        if (!cancelled) scheduleTimeout(() => setPhase('play'), 500)
         return
       }
       setLitSide(pattern[i].side)
       playTap()
-      t = setTimeout(() => {
+      t = scheduleTimeout(() => {
         setLitSide(null)
-        t = setTimeout(() => run(i + 1), pattern[i].gapMs - 350)
+        t = scheduleTimeout(() => run(i + 1), pattern[i].gapMs - 350)
       }, 320)
     }
     run(0)
@@ -77,7 +78,7 @@ export function CherawSteps({ logAction, complete }: GameProps) {
     void playChime()
     recordAnswer(DOMAIN, level, patternMisses.current <= beatCount / 4)
     patternMisses.current = 0
-    setTimeout(() => {
+    scheduleTimeout(() => {
       if (patternIdx + 1 < TOTAL_PATTERNS) {
         setLevel(nextLevel(DOMAIN))
         setPatternIdx((p) => p + 1)
@@ -97,7 +98,7 @@ export function CherawSteps({ logAction, complete }: GameProps) {
   }
 
   useEffect(() => {
-    if (phase !== 'play') return
+    if (phase !== 'play' || doneRef.current) return
     if (beatIdx >= pattern.length) finishPattern()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [beatIdx, phase])
@@ -115,7 +116,7 @@ export function CherawSteps({ logAction, complete }: GameProps) {
       playSoftCue()
       logAction('cued')
       setMissFlash(true)
-      setTimeout(() => setMissFlash(false), 600)
+      scheduleTimeout(() => setMissFlash(false), 600)
     }
   }
 

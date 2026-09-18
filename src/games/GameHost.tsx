@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useApp } from '../state'
 import { navigate } from '../router'
-import { gameById } from '../lib/games'
+import { gameById, localizedGameName } from '../lib/games'
 import { recordSessionResult } from '../lib/ai'
 import { loadConfig } from '../lib/db'
 import { computeFrustrationIndex } from '../lib/sathi'
 import { ensureAbilities } from '../lib/adaptive'
 import { playSoftCue, playChime, unlockAudio, stopAllAudio } from '../lib/audio'
 import { VoiceService } from '../lib/voice'
+import { deriveSessionCoach, type SessionCoachResult } from '../lib/sessionCoach'
 import { Icon } from '../components/Icons'
 
 import { FacesOfHome } from './FacesOfHome'
@@ -83,18 +84,38 @@ export function GameScreen() {
   const startedAt = useRef(Date.now())
   const [actions, setActions] = useState<{ kind: string; latency: number }[]>([])
   const [cueCount, setCueCount] = useState(0)
-  const [finished, setFinished] = useState<null | { outcome: GameOutcome; reward: number }>(null)
+  const [finished, setFinished] = useState<null | { outcome: GameOutcome; reward: number; coach: SessionCoachResult }>(null)
   const [glow, setGlow] = useState(false)
   const lastActionTs = useRef(Date.now())
   const tapTimes = useRef<number[]>([])
   const explorationRef = useRef(false)
   const outcomeRef = useRef<GameOutcome | null>(null)
+  const mountedRef = useRef(true)
+  const completionStartedRef = useRef(false)
+  const cueTimersRef = useRef<Set<ReturnType<typeof setTimeout>>>(new Set())
 
   const isOverCap = sessionsToday >= dailyGameLimit
 
   useEffect(() => {
+    // App keeps GameScreen mounted while switching between game hash routes.
+    // Start each game with a fresh completion gate and session metrics.
+    completionStartedRef.current = false
+    outcomeRef.current = null
+    startedAt.current = Date.now()
+    lastActionTs.current = Date.now()
+    tapTimes.current = []
+    setActions([])
+    setCueCount(0)
+    setFinished(null)
+  }, [gameId])
+
+  useEffect(() => {
+    mountedRef.current = true
     void ensureAbilities()
     return () => {
+      mountedRef.current = false
+      for (const timer of cueTimersRef.current) clearTimeout(timer)
+      cueTimersRef.current.clear()
       stopAllAudio()
     }
   }, [])
@@ -115,7 +136,11 @@ export function GameScreen() {
         setGlow(true)
         setCueCount((c) => c + 1)
         lastActionTs.current = Date.now()
-        setTimeout(() => setGlow(false), 1600)
+        const glowTimer = setTimeout(() => {
+          cueTimersRef.current.delete(glowTimer)
+          if (mountedRef.current) setGlow(false)
+        }, 1600)
+        cueTimersRef.current.add(glowTimer)
       }
     }, 1200)
     return () => {
@@ -133,6 +158,10 @@ export function GameScreen() {
 
   const complete = useCallback(
     async (outcome: GameOutcome) => {
+      if (!mountedRef.current || completionStartedRef.current) return
+      const currentRoute = window.location.hash.replace(/^#/, '').split('?')[0].split('/game/')[1]
+      if (currentRoute === undefined || decodeURIComponent(currentRoute) !== gameId) return
+      completionStartedRef.current = true
       outcomeRef.current = outcome
       const duration = Date.now() - startedAt.current
       const avgLatency = actions.length ? duration / actions.length : 5000
@@ -153,11 +182,21 @@ export function GameScreen() {
           exploration: explorationRef.current,
         })
         reward = rec.reward
-        await refreshSessions()
+        if (mountedRef.current) await refreshSessions()
       } catch (err) {
         console.error('Failed to save session', err)
       }
-      setFinished({ outcome, reward })
+      if (!mountedRef.current) return
+      const routeAfterSave = window.location.hash.replace(/^#/, '').split('?')[0].split('/game/')[1]
+      if (routeAfterSave === undefined || decodeURIComponent(routeAfterSave) !== gameId) return
+      const coach = deriveSessionCoach({
+        completion: outcome.completion,
+        accuracy,
+        attempts: actions.length,
+        durationMs: duration,
+        cueCount,
+      })
+      setFinished({ outcome, reward, coach })
     },
     [actions, cueCount, gameId, difficulty, refreshSessions]
   )
@@ -169,7 +208,7 @@ export function GameScreen() {
   if (!game) {
     return (
       <div className="page center-col">
-        <p className="lead">Game not found.</p>
+        <p className="lead">{t('game_not_found')}</p>
         <button className="btn btn-primary" onClick={() => navigate('/')}>{t('nav_home')}</button>
       </div>
     )
@@ -180,14 +219,10 @@ export function GameScreen() {
       <div className="page center-col" style={{ textAlign: 'center', padding: 'var(--s-xl)' }}>
         <span style={{ fontSize: 64, marginBottom: 16 }}>🌺</span>
         <h2 className="display-md" style={{ color: 'var(--ink)', marginBottom: 8 }}>
-          {lang === 'hi'
-            ? 'आज के खेलों की सीमा पूरी हो गई है।'
-            : 'Today’s game limit has been reached.'}
+          {t('game_daily_limit_title')}
         </h2>
         <p className="lead" style={{ textAlign: 'center', maxWidth: 480, color: 'var(--ink-muted)', marginBottom: 24 }}>
-          {lang === 'hi'
-            ? 'कृपया कल फिर आइए और नए खेलों का आनंद लीजिए।'
-            : 'Please come back tomorrow.'}
+          {t('game_daily_limit_body')}
         </p>
         <button className="btn btn-primary btn-big" onClick={() => navigate('/')}>{t('nav_home')}</button>
       </div>
@@ -213,11 +248,23 @@ export function GameScreen() {
           <button className="icon-btn" aria-label={t('back')} onClick={() => {
             stopAllAudio()
             navigate('/')
-          }}>
+          }} style={{ flexShrink: 0 }}>
             <Icon name="back" />
           </button>
-          <h2 style={{ fontFamily: 'var(--font-display)', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 700, fontSize: 18, color: 'var(--ink)' }}>
-            {game ? (lang === 'hi' && game.nameHi ? game.nameHi : game.name) : instruction}
+          <h2 style={{
+            flex: '1 1 auto',
+            minWidth: 0,
+            fontFamily: 'var(--font-display)',
+            margin: 0,
+            fontWeight: 700,
+            fontSize: 18,
+            lineHeight: 1.2,
+            color: 'var(--ink)',
+            whiteSpace: 'normal',
+            overflowWrap: 'anywhere',
+            wordBreak: 'break-word',
+          }}>
+            {game ? localizedGameName(game, lang) : instruction}
           </h2>
         </div>
 
@@ -227,7 +274,7 @@ export function GameScreen() {
           className="icon-btn"
           aria-label={t('listen')}
           onClick={speakInstruction}
-          style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}
+          style={{ cursor: 'pointer', flexShrink: 0 }}
         >
           <Icon name="volume" size={22} color="var(--primary)" />
         </button>
@@ -255,9 +302,10 @@ export function GameScreen() {
 
       {finished && (
         <PraiseCeremony
-          gameName={profile?.language === 'hi' && game.nameHi ? game.nameHi : game.name}
+          gameName={localizedGameName(game, lang)}
           reward={finished.reward}
           accuracy={finished.outcome.itemsTotal > 0 ? finished.outcome.itemsUnprompted / finished.outcome.itemsTotal : 1}
+          coach={finished.coach}
           t={t}
           patientName={profile?.patient.name ?? ''}
         />
@@ -266,28 +314,31 @@ export function GameScreen() {
   )
 }
 
-function PraiseCeremony({
+export function PraiseCeremony({
   gameName,
   reward,
   accuracy,
+  coach,
   t,
   patientName,
 }: {
   gameName: string
   reward: number
   accuracy: number
+  coach?: SessionCoachResult
   t: (k: string, v?: Record<string, string | number>) => string
   patientName: string
 }) {
   const { lang } = useApp()
-  const didWell = useMemo(() => {
-    if (lang === 'hi') {
-      return accuracy >= 0.7 ? 'आपने बहुत अच्छे से याद रखा। बहुत खूब!' : 'आपने बहुत सुंदर प्रयास किया।'
-    } else if (lang === 'as') {
-      return accuracy >= 0.7 ? 'আপুনি বহুত সুন্দৰকৈ মনত ৰাখিলে।' : 'আপুনি বহুত ভাল প্ৰচেষ্টা কৰিলে।'
-    }
-    return accuracy >= 0.7 ? 'You remembered so much today. Well done!' : 'You kept going beautifully.'
-  }, [accuracy, lang])
+  const sessionCoach = coach ?? deriveSessionCoach({ completion: 1, accuracy, attempts: 1 })
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const homeButtonRef = useRef<HTMLButtonElement>(null)
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null)
+  const navigatingHomeRef = useRef(false)
+  const didWell = useMemo(
+    () => t(accuracy >= 0.7 ? 'game_praise_good' : 'game_praise_trying'),
+    [accuracy, t]
+  )
 
   useEffect(() => {
     const praiseText = `${t('praise_title')}. ${didWell}`
@@ -297,19 +348,131 @@ function PraiseCeremony({
     }
   }, [didWell, lang, t])
 
+  useEffect(() => {
+    if (typeof document === 'undefined') return
+
+    previouslyFocusedRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+    homeButtonRef.current?.focus({ preventScroll: true })
+
+    const handleDialogKeyDown = (event: KeyboardEvent) => {
+      const dialog = dialogRef.current
+      if (!dialog) return
+
+      // Completion is already recorded by the time this praise ceremony is
+      // shown. Keep Escape from dismissing the ceremony and obscuring that
+      // completed state; move focus to the safe next action instead.
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        homeButtonRef.current?.focus({ preventScroll: true })
+        return
+      }
+
+      if (event.key !== 'Tab') return
+
+      const focusable = Array.from(
+        dialog.querySelectorAll<HTMLElement>('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')
+      ).filter((element) => !element.hasAttribute('disabled') && element.getAttribute('aria-hidden') !== 'true')
+
+      if (focusable.length === 0) {
+        event.preventDefault()
+        dialog.focus({ preventScroll: true })
+        return
+      }
+
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      const activeElement = document.activeElement
+      const activeIsFocusable = activeElement instanceof HTMLElement && focusable.includes(activeElement)
+      if (event.shiftKey && (!activeIsFocusable || activeElement === first)) {
+        event.preventDefault()
+        last.focus({ preventScroll: true })
+      } else if (!event.shiftKey && (!activeIsFocusable || activeElement === last)) {
+        event.preventDefault()
+        first.focus({ preventScroll: true })
+      }
+    }
+
+    document.addEventListener('keydown', handleDialogKeyDown)
+    return () => {
+      document.removeEventListener('keydown', handleDialogKeyDown)
+      const previouslyFocused = previouslyFocusedRef.current
+      if (!navigatingHomeRef.current && previouslyFocused && document.contains(previouslyFocused)) {
+        previouslyFocused.focus({ preventScroll: true })
+      }
+    }
+  }, [])
+
   return (
-    <div className="praise-overlay" role="dialog" aria-label={t('praise_title')}>
+    <div
+      ref={dialogRef}
+      className="praise-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label={t('praise_title')}
+      aria-labelledby="game-completion-title"
+      aria-describedby="game-completion-description"
+      tabIndex={-1}
+    >
       <div className="praise-stars">🌟🌺🌟</div>
-      <h2 className="display-lg" style={{ color: '#fff' }}>{t('praise_title')}</h2>
-      <p className="lead" style={{ color: 'var(--ink-muted)', maxWidth: 560 }}>{t('praise_body')}</p>
+      <h2 id="game-completion-title" className="display-lg" style={{ color: '#fff' }}>{t('praise_title')}</h2>
+      <p id="game-completion-description" className="lead" style={{ color: 'var(--ink-muted)', maxWidth: 560 }}>{t('praise_body')}</p>
       <p className="lead" style={{ color: '#fff' }}>{didWell}</p>
-      <div className="row" style={{ gap: 'var(--s-md)', marginTop: 'var(--s-lg)' }}>
+      <section
+        className="session-coach-card"
+        aria-labelledby="session-coach-title"
+        style={{
+          width: '100%',
+          maxWidth: 560,
+          boxSizing: 'border-box',
+          padding: 'var(--s-md)',
+          borderRadius: 'var(--r-md)',
+          background: 'rgba(255, 255, 255, 0.1)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          textAlign: 'left',
+        }}
+      >
+        <h3 id="session-coach-title" style={{ color: '#fff', margin: 0, fontSize: 'var(--fs-subtitle)' }}>
+          {t(`coach_${sessionCoach.action}_title`)}
+        </h3>
+        <p style={{ color: 'var(--ink-on-dark)', margin: 'var(--s-xs) 0 0', lineHeight: 1.5 }}>
+          {t(`coach_${sessionCoach.action}_body`)}
+        </p>
+        <p className="caption" style={{ color: 'var(--ink-muted)', margin: 'var(--s-sm) 0 0' }}>
+          {t('coach_privacy')}
+        </p>
+      </section>
+      <div
+        className="row"
+        style={{
+          width: '100%',
+          maxWidth: 420,
+          flexDirection: 'column',
+          alignItems: 'stretch',
+          gap: 'var(--s-sm)',
+          marginTop: 'var(--s-lg)',
+        }}
+      >
         <button
-          className="btn btn-primary btn-big"          onClick={() => {
+          ref={homeButtonRef}
+          className="btn btn-primary btn-big"
+          style={{ width: '100%', minHeight: 56, overflowWrap: 'anywhere' }}
+          onClick={() => {
+            navigatingHomeRef.current = true
             stopAllAudio()
             navigate('/')
           }}>
           {t('nav_home')}
+        </button>
+        <button
+          className="btn btn-pearl btn-big"
+          style={{ width: '100%', minHeight: 56, overflowWrap: 'anywhere' }}
+          onClick={() => {
+            navigatingHomeRef.current = true
+            stopAllAudio()
+            navigate('/')
+          }}
+        >
+          {t(`coach_${sessionCoach.action}_action`)}
         </button>
       </div>
       <p className="caption" style={{ color: 'var(--ink-muted)', marginTop: 'var(--s-xl)' }}>

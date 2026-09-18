@@ -27,6 +27,20 @@ export function newBanditArm(dim: number = FEATURE_DIMENSION): BanditArm {
   }
 }
 
+function normalizeArm(raw: unknown): BanditArm | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null
+  const source = raw as { Ainv?: unknown; b?: unknown; n?: unknown }
+  if (!Array.isArray(source.Ainv) || source.Ainv.length !== FEATURE_DIMENSION
+    || !Array.isArray(source.b) || source.b.length !== FEATURE_DIMENSION) return null
+  const matrix = source.Ainv.map((row) => Array.isArray(row) ? row.map(Number) : [])
+  const vector = source.b.map(Number)
+  if (matrix.some((row) => row.length !== FEATURE_DIMENSION || row.some((value) => !Number.isFinite(value)))
+    || vector.some((value) => !Number.isFinite(value))) return null
+  const n = Number(source.n)
+  if (!Number.isFinite(n) || n < 0) return null
+  return { Ainv: matrix, b: vector, n: Math.floor(n) }
+}
+
 function matVec(A: number[][], x: number[]): number[] {
   const len = A.length
   const out = new Array(len).fill(0)
@@ -57,28 +71,82 @@ class BanditPolicyClass {
   private arms: BanditArms = {}
   private isLoaded = false
   private alpha = 0.8 // Exploration coefficient
+  private loading: Promise<void>
+  private pendingOperations: Array<{ type: 'reset' } | { type: 'update'; armId: string; x: number[]; reward: number }> = []
+  private persistQueue: Promise<void> = Promise.resolve()
 
   constructor() {
-    void this.load()
+    this.loading = this.hydrate()
   }
 
   public async load(): Promise<void> {
-    if (this.isLoaded) return
+    await this.loading
+  }
+
+  /**
+   * Wait until persisted state has been hydrated before making a decision.
+   * The synchronous scoring API remains available for callers that already
+   * await app readiness; new async callers should use this barrier first.
+   */
+  public async ready(): Promise<void> {
+    await this.loading
+  }
+
+  public isReady(): boolean {
+    return this.isLoaded
+  }
+
+  private async hydrate(): Promise<void> {
+    let stored: BanditArms | null = null
     try {
-      const stored = await dbGet<BanditArms>('kv', 'adaptive_bandit_arms')
-      if (stored && typeof stored === 'object') {
-        this.arms = stored
-      }
+      stored = await dbGet<BanditArms>('kv', 'adaptive_bandit_arms')
     } catch {
       // In-memory fallback
     }
+
+    // Apply mutations made while IndexedDB was being read on top of the
+    // persisted snapshot, preserving both old learning and new input.
+    this.arms = {}
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+      for (const [armId, rawArm] of Object.entries(stored)) {
+        const arm = normalizeArm(rawArm)
+        if (arm) this.arms[armId] = arm
+      }
+    }
+    const pending = this.pendingOperations
+    this.pendingOperations = []
+    for (const operation of pending) {
+      if (operation.type === 'reset') {
+        this.arms = {}
+      } else {
+        this.applyUpdate(operation.armId, operation.x, operation.reward)
+      }
+    }
     this.isLoaded = true
+
+    if (pending.length > 0) {
+      await this.enqueuePersist()
+    }
   }
 
-  private async persist(): Promise<void> {
-    try {
-      await dbSet('kv', this.arms, 'adaptive_bandit_arms')
-    } catch {}
+  private cloneArms(): BanditArms {
+    return Object.fromEntries(
+      Object.entries(this.arms).map(([id, arm]) => [id, {
+        Ainv: arm.Ainv.map((row) => [...row]),
+        b: [...arm.b],
+        n: arm.n,
+      }])
+    )
+  }
+
+  private enqueuePersist(): Promise<void> {
+    const snapshot = this.cloneArms()
+    this.persistQueue = this.persistQueue.then(async () => {
+      try {
+        await dbSet('kv', snapshot, 'adaptive_bandit_arms')
+      } catch {}
+    })
+    return this.persistQueue
   }
 
   public getArm(armId: string): BanditArm {
@@ -109,6 +177,14 @@ class BanditPolicyClass {
    * Sherman-Morrison rank-1 update on arm inverse matrix
    */
   public updateArm(armId: string, x: number[], reward: number): void {
+    if (!this.isLoaded) {
+      this.pendingOperations.push({ type: 'update', armId, x: [...x], reward })
+    }
+    this.applyUpdate(armId, x, reward)
+    if (this.isLoaded) void this.enqueuePersist()
+  }
+
+  private applyUpdate(armId: string, x: number[], reward: number): void {
     const arm = this.getArm(armId)
     const Ax = matVec(arm.Ainv, x)
     const denom = 1 + dot(x, Ax)
@@ -125,12 +201,13 @@ class BanditPolicyClass {
     }
 
     arm.n += 1
-    void this.persist()
   }
 
-  public reset(): void {
+  public reset(): Promise<void> {
+    if (!this.isLoaded) this.pendingOperations.push({ type: 'reset' })
     this.arms = {}
-    void this.persist()
+    if (this.isLoaded) return this.enqueuePersist()
+    return this.loading
   }
 }
 

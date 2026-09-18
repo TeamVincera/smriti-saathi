@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genOddOneRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -19,6 +19,7 @@ export function OddOneOut({ logAction, complete }: GameProps) {
   const round = useMemo(() => genOddOneRound(rng, level), [rng, level, roundIdx])
   const [picked, setPicked] = useState<string | null>(null)
   const [glow, setGlow] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
 
   function pick(emoji: string) {
@@ -35,7 +36,7 @@ export function OddOneOut({ logAction, complete }: GameProps) {
       playSoftCue()
       setGlow(round.intruder.emoji)
     }
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPicked(null)
       setGlow(null)
       if (roundIdx + 1 >= TOTAL) {
@@ -56,7 +57,9 @@ export function OddOneOut({ logAction, complete }: GameProps) {
         {round.options.map((o) => (
           <button
             key={o.label}
-            className={`choice-btn ${picked === o.emoji ? (o.emoji === round.intruder.emoji ? 'correct' : 'wrong') : ''} ${glow === o.emoji ? 'glow' : ''}`}
+            className={`choice-btn ${picked === o.emoji ? (o.emoji === round.intruder.emoji ? 'answer-correct' : 'answer-guidance') : ''} ${glow === o.emoji ? 'glow' : ''}`}
+            aria-pressed={picked === o.emoji}
+            data-answer-state={picked === o.emoji ? (o.emoji === round.intruder.emoji ? 'correct' : 'guidance') : 'idle'}
             style={{ minWidth: 130 }}
             onClick={() => pick(o.emoji)}
           >
@@ -65,6 +68,7 @@ export function OddOneOut({ logAction, complete }: GameProps) {
           </button>
         ))}
       </div>
+      <AnswerFeedback state={picked === null ? 'idle' : picked === round.intruder.emoji ? 'success' : 'guidance'} />
       <p className="caption">The visitor will glow gently if you wait.</p>
     </div>
   )

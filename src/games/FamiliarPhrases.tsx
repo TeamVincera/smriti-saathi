@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genFamiliarPhraseRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -20,12 +20,13 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
 
   const [pickedText, setPickedText] = useState<string | null>(null)
   const [glowText, setGlowText] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
 
   const promptText = lang === 'hi' ? round.phrase.promptHi : round.phrase.prompt
 
   useEffect(() => {
-    const glowTimer = setTimeout(() => {
+    const glowTimer = scheduleTimeout(() => {
       if (!pickedText && !glowText) {
         setGlowText(round.phrase.correctCompletion)
         playSoftCue()
@@ -52,7 +53,7 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
       setGlowText(round.phrase.correctCompletion)
     }
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPickedText(null)
       setGlowText(null)
       if (roundIdx + 1 >= TOTAL_ROUNDS) {
@@ -63,6 +64,9 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
       }
     }, 1600)
   }
+
+  const selectedOption = round.options.find((opt) => opt.text === pickedText)
+  const feedbackState = !selectedOption ? 'idle' : selectedOption.isCorrect ? 'success' : 'guidance'
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
@@ -79,7 +83,7 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
       </div>
 
       {/* Completion Options Grid */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--s-md)', width: '100%' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 'var(--s-md)', width: '100%' }}>
         {round.options.map((opt, i) => {
           const isSelected = pickedText === opt.text
           const isGlow = glowText === opt.text
@@ -88,7 +92,9 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
           return (
             <button
               key={i}
-              className={`choice-card-big ${isSelected ? (opt.isCorrect ? 'correct' : 'wrong') : ''} ${isGlow ? 'glow' : ''}`}
+              className={`choice-card-big ${isSelected ? (opt.isCorrect ? 'answer-correct' : 'answer-guidance') : ''} ${isGlow ? 'glow' : ''}`}
+              aria-pressed={isSelected}
+              data-answer-state={isSelected ? (opt.isCorrect ? 'correct' : 'guidance') : 'idle'}
               onClick={() => pick(opt)}
               style={{
                 display: 'flex',
@@ -98,19 +104,21 @@ export function FamiliarPhrases({ difficulty, logAction, complete }: GameProps) 
                 textAlign: 'center',
                 padding: 'var(--s-lg)',
                 borderRadius: 'var(--r-lg)',
-                background: isSelected ? (opt.isCorrect ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                border: isSelected ? (opt.isCorrect ? '3px solid var(--success)' : '3px solid var(--error)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                background: isSelected ? (opt.isCorrect ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                border: isSelected ? (opt.isCorrect ? '3px solid var(--success)' : '3px solid var(--primary)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                 boxShadow: 'var(--shadow-sm)',
                 minHeight: 140,
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
               }}
             >
-              <strong style={{ fontSize: 'var(--fs-body)', color: isSelected && !opt.isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)', lineHeight: 1.3 }}>{label}</strong>
+              <strong style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)', lineHeight: 1.3 }}>{label}</strong>
             </button>
           )
         })}
       </div>
+
+      <AnswerFeedback state={feedbackState} />
 
       <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted-48)' }}>
         Tap the words that finish the saying naturally.

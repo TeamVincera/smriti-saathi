@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { afterEach, vi } from 'vitest'
 import { AppProvider, useApp } from '../../src/state'
-import { wipeAll } from '../../src/lib/db'
+import { getMeds, loadConfig, loadProfile, wipeAll } from '../../src/lib/db'
+import * as alarmService from '../../src/lib/alarmService'
+import { AdaptiveQuestionEngine } from '../../src/lib/adaptive'
 import type { Profile, Med } from '../../src/lib/types'
 
 describe('App State Context Integration', () => {
@@ -9,6 +12,10 @@ describe('App State Context Integration', () => {
     await wipeAll()
     localStorage.clear()
     sessionStorage.clear()
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
   })
 
   it('initializes state and provides translations', async () => {
@@ -139,5 +146,86 @@ describe('App State Context Integration', () => {
     expect(result.current.profile?.cultural.festivals).toContain('Diwali')
     expect(result.current.profile?.cultural.hobbies).toContain('Painting')
     expect(result.current.profile?.cultural.hobbies).toContain('Birdwatching')
+  })
+
+  it('clears the profile ref on reset so post-reset updates cannot resurrect old data', async () => {
+    const { result } = renderHook(() => useApp(), { wrapper: AppProvider })
+    await waitFor(() => expect(result.current.ready).toBe(true))
+
+    await act(async () => {
+      await result.current.setProfile({
+        language: 'en',
+        patient: { name: 'Reset Me' },
+        clinical: { stage: 'mild' },
+        cultural: {},
+        routine: {},
+        caregiver: {},
+        onboarded: true,
+        createdAt: Date.now(),
+      })
+      await result.current.resetAllData()
+    })
+
+    expect(result.current.profile).toBeNull()
+    await expect(result.current.updateProfile({ patient: { name: 'Should not return' } })).rejects.toThrow('before it is loaded')
+    expect(await loadProfile()).toBeNull()
+    expect(AdaptiveQuestionEngine.getProfile().totalAttempts).toBe(0)
+  })
+
+  it('serializes config read-modify-write updates so theme and daily limit are preserved', async () => {
+    const { result } = renderHook(() => useApp(), { wrapper: AppProvider })
+    await waitFor(() => expect(result.current.ready).toBe(true))
+
+    await act(async () => {
+      await Promise.all([
+        result.current.setTheme('dark'),
+        result.current.updateDailyGameLimit(7),
+      ])
+    })
+
+    const config = await loadConfig()
+    expect(config.theme).toBe('dark')
+    expect(config.maxSessionsPerDay).toBe(7)
+  })
+
+  it('waits for an older native sync before reset cancels alarms', async () => {
+    const order: string[] = []
+    let resolveSync!: (count: number) => void
+    const syncFinished = new Promise<number>((resolve) => { resolveSync = resolve })
+    const syncSpy = vi.spyOn(alarmService, 'syncAllAlarmsToNative').mockImplementation(async () => {
+      order.push('sync-start')
+      const count = await syncFinished
+      order.push('sync-end')
+      return count
+    })
+    const cancelSpy = vi.spyOn(alarmService, 'cancelAllAlarmsToNative').mockImplementation(async () => {
+      order.push('cancel')
+    })
+    const { result } = renderHook(() => useApp(), { wrapper: AppProvider })
+    await waitFor(() => expect(result.current.ready).toBe(true))
+
+    let upsertPromise!: Promise<void>
+    await act(async () => {
+      upsertPromise = result.current.upsertMed({
+        id: 'queued-med', name: 'Queued tablet', dosage: '1', form: 'tablet', times: ['08:00'], active: true,
+      })
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(syncSpy).toHaveBeenCalledTimes(1))
+
+    let resetPromise!: Promise<void>
+    await act(async () => {
+      resetPromise = result.current.resetAllData()
+      await Promise.resolve()
+    })
+    expect(cancelSpy).not.toHaveBeenCalled()
+
+    resolveSync(1)
+    await upsertPromise
+    await resetPromise
+
+    expect(order.indexOf('sync-end')).toBeGreaterThanOrEqual(0)
+    expect(order.indexOf('sync-end')).toBeLessThan(order.indexOf('cancel'))
+    expect(await getMeds()).toEqual([])
   })
 })

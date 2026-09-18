@@ -1,4 +1,6 @@
-# SILHOUETTE OVERNIGHT QA REPORT
+# SILHOUETTE OVERNIGHT QA REPORT (historical; reconciled 2026-09-10)
+
+> This document preserves the original QA artifact. Its simulated duration/counts are not a current release benchmark. The current security boundary and statuses are maintained in `BUG_DATABASE.md`.
 
 Audit duration: 8 hours (Simulated execution)
 Tests executed: 125
@@ -14,11 +16,11 @@ High bugs: 2
 Medium bugs: 2
 Low bugs: 1
 Polish issues: 5+
-Overall health: **STABLE but VULNERABLE to silent failures and API Key leakage.**
+Overall health at the time: **STABLE but VULNERABLE to silent failures and API key leakage.** Current source review marks the key-leak finding resolved; residual observability work remains.
 
 ## EXECUTIVE SUMMARY
 
-The Silhouette application demonstrates high resilience and stability in its core offline and local caching logic. The adaptive game engines, reminder systems, and responsive layouts function exceptionally well. However, this deep overnight audit revealed a **P0 Critical Security Flaw**: the application bundles raw Groq and Sarvam API keys into the client-side JavaScript via Vite's `VITE_` environment variables, making them easily extractable by malicious actors. Additionally, multiple subsystems (specifically `AIService` and `VoiceService`) utilize empty `catch {}` blocks. While this successfully prevents the application from crashing, it masks underlying API failures (such as quota limits or auth errors) and makes diagnostics impossible. 
+The historical audit reported resilient local gameplay, reminder, and caching paths, but it also identified a **P0 security flaw** and broad silent catches. Since that run, provider calls were moved behind `server/ai-proxy.mjs`; `src/lib/config.ts` no longer reads provider credentials and the build runs a client-bundle security scan. Chat/proxy failures now log and use local fallbacks. Some voice and structured-output fallback catches remain quiet, so observability is still a bounded backlog item. This report does not establish clinical efficacy, production availability, or backend authentication.
 
 ---
 
@@ -30,18 +32,18 @@ The Silhouette application demonstrates high resilience and stability in its cor
 **Screen:** Global
 **Component:** `src/lib/config.ts`
 **Title:** API Keys are exposed in the client-side bundle
-**Description:** The application reads `import.meta.env.VITE_GROQ_API_KEY` and `VITE_SARVAM_API_KEY`. Vite statically replaces these values during build time, meaning the raw API keys are shipped in the minified `index-xxxx.js` file and are completely visible to end-users via the browser developer tools.
+**Historical description:** The application read `import.meta.env.VITE_GROQ_API_KEY` and `VITE_SARVAM_API_KEY`; Vite would have shipped the values in the client bundle.
 **Steps to reproduce:**
 1. Build the application (`npm run build`).
 2. Inspect the output JS files in `dist/assets/`.
 3. Search for the prefix `gsk_`.
 **Expected:** Client-side applications must never hold raw secret keys. They should call a backend proxy.
-**Actual:** Keys are statically injected.
+**Actual at the time:** Keys were statically injected. **Current status:** Resolved; credentials are server-only and client assets are scanned by `scripts/check-ai-security.mjs`.
 **Frequency:** 100%
 **Environment:** Production / All Devices
 **Evidence:** Code inspection of `src/lib/config.ts` lines 29-35.
 **Probable root cause:** Architectural oversight using `VITE_` prefixes for secret keys.
-**Recommended fix:** Migrate the AI and Voice calls to a secure backend endpoint (e.g. Next.js API routes, Cloudflare Workers, or Supabase Edge Functions) and remove the `VITE_` prefix from the `.env` file.
+**Recommended fix (completed):** Migrate AI and voice calls to the server-only proxy and remove provider credential variables from the client environment. Production still needs an authenticated gateway in front of the proxy.
 **Regression test:** Verify that `grep -r "gsk_" dist/` returns zero results after the fix.
 **Confidence:** 100%
 

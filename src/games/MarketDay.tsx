@@ -17,6 +17,7 @@ export function MarketDay({ logAction, complete }: GameProps) {
   const [note, setNote] = useState<string | null>(null)
   const unprompted = useRef(0)
   const overdraws = useRef(0)
+  const finishedRef = useRef(false)
 
   const itemCount = Object.values(cart).reduce((a, b) => a + b, 0)
   const targetItems = stall.targetItems
@@ -51,6 +52,14 @@ export function MarketDay({ logAction, complete }: GameProps) {
   }
 
   function finish() {
+    if (finishedRef.current) return
+    if (itemCount === 0) {
+      playSoftCue()
+      setNote('Choose an item for your basket first — there is no rush.')
+      return
+    }
+
+    finishedRef.current = true
     recordAnswer(DOMAIN, level, overdraws.current <= 1)
     void playChime()
     complete({ itemsTotal: Math.max(unprompted.current, 1), itemsUnprompted: Math.max(unprompted.current - overdraws.current, 1), completion: 1 })
@@ -85,13 +94,20 @@ export function MarketDay({ logAction, complete }: GameProps) {
               <strong>{name}</strong>
               <span className="caption">×{n}</span>
               <span style={{ marginLeft: 'auto' }}>₹{(stall.goods.find((g) => g.name === name)?.price ?? 0) * n}</span>
-              <button className="btn btn-pearl" style={{ minHeight: 40 }} onClick={() => remove(name)}>—</button>
+              <button
+                className="btn btn-pearl"
+                style={{ minHeight: 48, minWidth: 48 }}
+                aria-label={`Remove ${name}`}
+                onClick={() => remove(name)}
+              >
+                —
+              </button>
             </div>
           ))}
         </div>
       )}
 
-      {note && <p className="chip mt-sm">{note}</p>}
+      {note && <p className="chip mt-sm" role="status" aria-live="polite">{note}</p>}
 
       <button className="btn btn-primary btn-big mt-md" onClick={finish}>
         🧺 Finish shopping

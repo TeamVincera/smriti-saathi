@@ -1,252 +1,101 @@
-# Product Requirements Document (PRD)
+# Smriti Sathi — Product Requirements and As-Built Boundary
 
-## Product Name: Smriti Sathi — AI-Driven Cognitive Therapeutics for Dementia
+**Version:** 1.1
+**Date:** September 10, 2026
+**Status:** SIH-ready product brief; implementation status is called out explicitly.
+**Platform:** React/Vite web app with Capacitor iOS/Android shells
+**Region:** North Eastern Region, India
 
-**Version:** 1.0
-**Date:** August 25, 2026
-**Status:** Draft
-**Platform:** Android (mobile-first), low-compute devices
-**Region:** North Eastern Region (NER), India
+> Smriti Sathi is an assistive memory, routine, and caregiver-support app. It is not a medical device, diagnostic service, treatment, or proof of cognitive improvement. It must not be used to change medicines or replace professional care.
 
-> **Note:** For medical advice or diagnosis, consult a professional. This product is an assistive digital therapeutic tool, not a diagnostic device.
+## 1. Product intent
 
----
+Smriti Sathi gives older adults and families a calm, culturally familiar set of cognitive activities, medication/routine reminders, and caregiver views. Core activities are designed to remain useful without internet access. Optional online AI adds conversational and speech features when a separately deployed proxy is reachable.
 
-## 1. Executive Summary
+## 2. Current implementation (shipped in this repository)
 
-Smriti Sathi is a culturally localized, AI-powered cognitive gaming and memory assistance platform designed for elderly patients living with dementia and Mild Cognitive Impairment (MCI) in rural and remote areas of North Eastern India. The app operates fully **offline**, runs smoothly on **low-compute smartphones**, and provides continuous, adaptive cognitive stimulation through culturally familiar games, medicine reminders, and an AI companion that personalizes every session.
-
----
-
-## 2. Problem Statement
-
-- Rising dementia/MCI prevalence among the aging NER population.
-- Severe shortage of PHCs/CHCs and neurological specialists in Assam, Meghalaya, Tripura, Arunachal Pradesh, Nagaland, Mizoram, Manipur.
-- Geographic isolation accelerates cognitive decline, raises anxiety, and burdens caregivers and ASHA workers.
-- Intermittent connectivity and legacy/budget Android devices rule out cloud-dependent solutions.
-
----
-
-## 3. Goals & Objectives
-
-| Goal | Description |
-|---|---|
-| G1 | Deliver daily cognitive stimulation via culturally relevant games |
-| G2 | Support medication adherence through an easy, voice-assisted reminder system |
-| G3 | Personalize therapy using an on-device AI that adapts difficulty, sequence, and feedback in real time |
-| G4 | Ensure 100% offline functionality with zero data loss |
-| G5 | Minimize patient frustration; maximize engagement and dignity (Errorless Learning) |
-| G6 | Provide caregiver/ASHA visibility through telemetry sync when connectivity allows |
-
-### Non-Goals (v1)
-- Diagnosis of dementia or any medical condition.
-- Cloud-only features; real-time multiplayer; social feeds.
-- iOS support (deferred to v2).
-
----
-
-## 4. Target Users & Personas
-
-| Persona | Description | Primary Needs |
+| Area | Current behavior | Evidence |
 |---|---|---|
-| **Patient (Primary)** | Elderly (60+), mild–moderate dementia/MCI, low digital literacy, possible vision/motor impairment, speaks Assamese/Bengali/Bodo/Manipuri/etc. | Simple UI, large touch targets, local language voice guidance, no-fail interactions |
-| **Family Caregiver** | Adult child/spouse managing daily care | Medication logging, progress feedback, alerts |
-| **ASHA Worker** | Community health worker visiting households | Offline P2P telemetry pull, adherence overview |
+| Onboarding | Six language choices (Assamese, Bengali, Bodo, Manipuri, Hindi, English), patient/cultural/routine/caregiver fields, optional user-entered clinical context, and optional local caregiver PIN | `src/screens/Onboarding.tsx`, `src/lib/types.ts` |
+| Activities | 23 culturally themed games across three unlock phases; phase 2 unlocks after 4 completed sessions and phase 3 after 8 | `src/lib/games.ts` |
+| Local adaptation | Local performance tracking, 25-feature question engine (MLP + LinUCB + deterministic safety rules), and a 10-feature session-level LinUCB recommender | `src/lib/adaptive/`, `src/lib/linucb.ts`, `src/lib/ai.ts` |
+| Storage | Browser IndexedDB stores profiles, events, sessions, medicines, logs, reminders, appointments, and adaptive state; limited UI preferences also use local storage | `src/lib/db.ts`, `src/state.tsx` |
+| Reminders | Medicine, daily routine, and appointment reminders; web/in-app behavior plus Capacitor local notifications when permissions and native support are available | `src/lib/reminders.ts`, `src/lib/alarmService.ts` |
+| Caregiver view | Local PIN gate, adherence/session summaries, local alerts, and a non-diagnostic stability indicator derived from recorded sessions | `src/screens/CaregiverHub.tsx`, `src/lib/sathi.ts` |
+| Offline fallback | Local game logic, persistence, adaptive logic, prewritten chat fallbacks, cached audio, and browser Web Speech TTS can continue without the online proxy | `src/lib/ai/AIService.ts`, `src/lib/voice/VoiceService.ts` |
+| Online enhancement | Chat and caregiver-summary requests use `/api/ai`; speech transcription and neural TTS use the same proxy when available | `src/lib/ai/proxyClient.ts`, `server/ai-proxy.mjs` |
+| Security boundary | Groq, Sarvam, and Azure credentials are read only by the proxy server. `npm run build` runs a client-bundle security scan | `server/ai-proxy.mjs`, `scripts/check-ai-security.mjs` |
 
----
+## 3. Online/offline architecture
 
-## 5. Feature Requirements
+The app is local-first, not cloud-synchronized. The browser or native shell owns the profile, activity records, reminders, and adaptive state. Online AI is an optional enhancement:
 
-### 5.1 Feature F0 — First-Launch Onboarding & Patient Profile
+```text
+UI / Capacitor shell
+        │
+        ├── IndexedDB + local adaptive engines + local fallbacks  (works offline)
+        │
+        └── /api/ai proxy (online only)
+                ├── Groq chat / transcription
+                ├── Sarvam neural speech (hi/bn/en)
+                └── Azure neural speech (as/bn/hi/en)
+```
 
-**Description:** On first start, the app collects all essential patient information through a caregiver-assisted, guided wizard. All questions are asked aloud in the selected local language while displaying large text.
+The client sends requests to a same-origin `/api/ai` route on the web, or to a non-secret `VITE_AI_PROXY_URL` for a packaged Capacitor build. Provider keys belong in the proxy environment only. The proxy validates inputs, restricts origins, rate-limits by IP, bounds request sizes, normalizes upstream errors, and does not log patient text. CORS and rate limiting are abuse controls, not user authentication.
 
-**Requirements:**
-- FR-0.1: Language selection first (Assamese, Bengali, Bodo, Manipuri, Hindi, English) with audio playback of each option.
-- FR-0.2: Collect: patient name, age, photo (or avatar), languages spoken, education background.
-- FR-0.3: Collect clinical context: dementia stage (mild/moderate), existing diagnosis date (optional), current medications list, doctor/PHC contact.
-- FR-0.4: Collect cultural/personal profile for game localization: home state/district, community/tribe (optional), familiar festivals, occupation history, hobbies, family photos (for "Faces of Home" game).
-- FR-0.5: Collect daily routine anchors: wake time, meal times, medicine schedules, sleep time.
-- FR-0.6: Collect caregiver details: name, phone, relationship; ASHA worker details (optional).
-- FR-0.7: Run a short (5 min) **Baseline Assessment** using 2–3 Phase-1 games to seed AI parameters (reaction time, accuracy, interaction latency).
-- FR-0.8: Every field skippable except name + language; nothing blocks completion.
-- FR-0.9: Profile editable later only via a caregiver PIN gate ("Settings" hidden from main screen).
-- FR-0.10: All data stored locally (SQLite); no account/server required at setup.
+Offline does not mean every voice path is offline: browser Web Speech TTS and cached audio can work locally, while microphone transcription falls back to the proxy when browser speech recognition is unavailable. Online neural speech is optional and may be unavailable even when the device has internet access.
 
-**Acceptance Criteria:**
-- A new user can complete onboarding in under 10 minutes.
-- App never shows an error state during onboarding; skipped fields get sensible defaults.
-- Baseline results automatically configure initial game difficulty.
+## 4. Scope and requirements
 
----
+### Shipped now
 
-### 5.2 Feature F1 — Cognitive Games Section
+- Large-touch, responsive patient flows and caregiver-assisted onboarding.
+- Local language content for the six languages listed above; content breadth and speech-provider coverage vary by language.
+- Twenty-three games with gentle cues, session metrics, local adaptive selection, and local session history.
+- Medicine, daily routine, appointment scheduling, adherence logging, snooze/dismiss actions, and native notification integration where supported.
+- Local caregiver PIN gate. This is device-local access control, not an account, OTP, identity proof, or remote authentication system.
+- Non-diagnostic local/online caregiver summaries with safety filtering and local fallback text.
 
-**Description:** A library of culturally localized therapeutic games organized in three adaptive phases. The AI selects which game appears next (see F3).
+### Planned / not implemented
 
-#### Phase 1: Familiarization & Baseline
+- Accounts, OTP login, remote identity, multi-device authorization, or caregiver cloud access.
+- CRDT synchronization, cloud database, ASHA peer-to-peer transfer, Bluetooth/Wi-Fi Direct exchange, and district-server ingestion.
+- Clinical validation, randomized trials, efficacy claims, or regulatory clearance.
+- Camera-based emotion inference, on-device IndicConformer/Sherpa/Vosk models, or guaranteed offline speech recognition.
+- Encrypted application database, end-to-end encryption, or a production authenticated gateway in front of the optional AI proxy.
+- Background asset/content distribution and server-managed clinical configuration.
 
-| Game | Cognitive Domain | NER Cultural Integration | Therapeutic Principle |
-|---|---|---|---|
-| Faces of Home | Episodic memory & recognition | Family photos, ASHA worker profiles | Spaced Retrieval Therapy — expanding recall intervals |
-| Morning Melodies | Auditory memory & attention | Bihu dhol, Wangala drums, Mising flutes | Errorless Learning — correct image gently pulses if delayed |
-| Tea Garden Walk | Visuospatial navigation | Assam tea estates | CST — trace path, collect tea leaves |
-| Daily Life Sequence | Executive function (sequencing) | Tamol (betel nut)/tea preparation steps | Errorless Learning — items snap only into correct slots |
+## 5. Safety and language
 
-#### Phase 2: Targeted Cognitive Training
+The product must use assistive, non-diagnostic language. It may offer general education, comfort, and routine support; it must not diagnose, claim to treat or cure a condition, infer infection/delirium, or advise starting, stopping, or changing a medicine or dose. Alerts are prompts for caregiver attention, not clinical predictions. A clinician or pharmacist remains responsible for medical decisions.
 
-| Game | Cognitive Domain | NER Integration | Principle |
-|---|---|---|---|
-| Weaver's Loom | Pattern recognition | Gamosa, Naga shawl, Mizo Puan motifs | CST — find missing pattern segment |
-| Bamboo Crafting | Object recognition & sorting | Baskets, sieves | EL — pieces highlight/guide |
-| Cheraw Steps | Rhythmic attention & timing | Mizo Cheraw dance | Sustained attention — tap with bamboo rhythm |
-| Wildlife Safari | Visual search & concentration | Rhino, Mithun, Hornbill | Visual discrimination in forest scenes |
+## 6. Deployment requirements
 
-#### Phase 3: Maintenance, Emotion & Social Connection
+### Offline-only web or native demo
 
-| Game | Cognitive Domain | NER Integration | Principle |
-|---|---|---|---|
-| Festival Tales | Verbal memory & comprehension | Bodo/Khasi/Garo/Bhutia folklore audio stories | Reminiscence — opinion-based prompts (no right/wrong) |
-| Market Day | Calculation & working memory | Virtual local bazaar | Executive function — budget adjusts to avoid math anxiety |
-| Memory Garden | Emotional regulation | Native orchids garden | Positive reinforcement — garden flourishes with completed reminders/meds |
+Build the static app with `npm run build`, then serve `dist/` or sync it into a Capacitor shell. Games, local storage, adaptive logic, reminders, and local fallbacks do not require provider credentials. Notification permissions and exact-alarm behavior depend on the browser/OS.
 
-**Functional Requirements:**
-- FR-1.1: One-tap access to exactly **one recommended game** on the Home screen ("Today's Game"). A secondary "More Games" grid shows unlocked games.
-- FR-1.2: Each session lasts 7–12 minutes; max 3 sessions/day suggested by AI.
-- FR-1.3: Instructions permanently pinned at top of screen, spoken aloud, replayable via speaker button.
-- FR-1.4: Errorless Learning guardrails: hesitation > 4 seconds triggers gentle visual/audio cue; no failure states, no red X, no buzzers.
-- FR-1.5: SRT engine tracks per-item recall intervals (expand on success, drop back one step on miss).
-- FR-1.6: Every interaction logged locally: accuracy, latency, hesitation count, cue usage, completion, frustration signals (tap force/rate).
-- FR-1.7: Session end shows warm, non-judgmental praise animation ("You did wonderfully!").
+### Online AI deployment
 
-**Acceptance Criteria:**
-- Patient can complete any game with zero reading ability (voice-guided).
-- No game can present a "Game Over / Failed" state.
-- Hesitation cue fires within 4s consistently across all games.
+Deploy `server/ai-proxy.mjs` (or mount its exported handler) behind HTTPS. Configure server-only `GROQ_API_KEY`, `SARVAM_API_KEY`, and/or `AZURE_SPEECH_KEY` plus `AI_PROXY_ORIGINS`; use `VITE_AI_PROXY_URL` only as a non-secret client endpoint. Production still needs an authenticated gateway, session, or device-attestation layer if the proxy is exposed beyond a controlled demo. See [`docs/AI_PROXY.md`](docs/AI_PROXY.md).
 
----
+## 7. Evaluation plan (future, not results)
 
-### 5.3 Feature F2 — Medicine Reminder Section
+Pilot targets such as adherence, usability, crash rate, and caregiver satisfaction are hypotheses for a properly approved evaluation. No clinical efficacy, treatment, or pilot outcome is established by this repository. Any future study must define consent, privacy, clinical oversight, analysis methods, and a registered evaluation protocol before results are presented.
 
-**Description:** A dead-simple medication logger and reminder system woven into gameplay rewards (Memory Garden integration).
+## 8. Release framing
 
-**Requirements:**
-- FR-2.1: Caregiver adds medicines: name, dose form (tablet/capsule/syrup/injection photo), dosage, timings (morning/afternoon/evening/night or exact clock times), duration, food instructions (before/after meal — shown as plate icons).
-- FR-2.2: Medicine entries created via large-photo cards: photo of the actual medicine strip/bottle captured by camera + big text label.
-- FR-2.3: Reminder fires as full-screen gentle alert: spoken prompt in patient's language + medicine photo + green check button (min 96px). Snooze = single "Remind me in 10 minutes" button.
-- FR-2.4: Patient confirms by tapping the check OR saying "Yes" (offline voice recognition). Confirmation waters the plant in Memory Garden (positive reinforcement loop).
-- FR-2.5: Missed-dose handling: after grace period, app notifies caregiver (if configured) and logs event; never scolds the patient.
-- FR-2.6: Simple weekly adherence view for caregiver: taken / missed / skipped per medicine (icon-based calendar, color + icon dual-coded).
-- FR-2.7: Refill tracker: optional count of remaining doses with low-stock spoken warning to caregiver.
-- FR-2.8: Hydration/activity reminders configurable alongside meds (feeds Memory Garden too).
-- FR-2.9: Reminders fire fully offline via local notifications/alarm manager with reboot persistence.
+- **Current demo/MVP:** onboarding, 23 games, local adaptation, reminders, caregiver view, PWA/native packaging, and optional proxy-backed AI.
+- **Next engineering tranche:** production gateway/authentication, privacy review, device backup/export, accessibility review, and operational monitoring.
+- **Later roadmap:** multi-device sync, ASHA workflows, additional speech/content packs, and formal evaluation. These are roadmap items, not current capabilities.
 
-**Acceptance Criteria:**
-- Adding a medicine takes < 90 seconds for a caregiver.
-- Reminder is dismissible by a patient with tremors without mis-taps (no double-confirm dialogs).
-- Adherence log survives device restart and offline periods indefinitely.
+## 9. Risks and mitigations
 
----
-
-### 5.4 Feature F3 — AI Companion Mode ("Sathi")
-
-**Description:** An always-on, on-device AI layer that observes the patient, gives rich feedback, and continuously customizes plans, exercises, and games. Built on a Contextual Multi-Armed Bandit using **LinUCB**, chosen over deep RL/Thompson Sampling for determinism, auditability, and O(d²) Sherman-Morrison updates suited to Cortex-A53-class CPUs.
-
-**Requirements:**
-- FR-3.1: **Next-Game Prediction:** At each decision point, score every available game/difficulty arm:
- `a_t = argmax( x·θ̂_a + α·√(xᵀ A_a⁻¹ x) )`; queue winner immediately. Works 100% offline.
-- FR-3.2: **Context vector x_t** includes: time-of-day bucket (sundowning awareness), last-3-session accuracy/reaction/completion, hesitation counts, Frustration Index (tap dynamics + optional front-camera emotion micro-expressions via INT8-quantized TFLite model), sleep/reminder adherence signals, phase progression level.
-- FR-3.3: **Composite reward:** `r = w1·Completion + w2·UnpromptedAccuracy − w3·ExcessiveHesitation − w4·FrustrationIndex`. Weights configurable by clinical config pulled during sync.
-- FR-3.4: **Dynamic Difficulty Adjustment:** Within each game, item complexity, board size, contrast clutter, and speed scale up/down per performance; de-escalation is instant (e.g., high Frustration Index → next session becomes Festival Tales reminiscence module).
-- FR-3.5: **Personalized Plan Generation:** Weekly plan auto-built: number of sessions, game mix across phases, SRT interval schedule, reminder coaching — adjusted from observed trends.
-- FR-3.6: **Rich Feedback Engine (lots of feedback):**
-  - In-game: spoken encouragement after each correct action, gentle cues on hesitation, progress leaf/star animations.
-  - Post-session: 3-part spoken summary in simple sentences — what they did well, one thing to practice, what's next ("Tomorrow we'll sing with the dhol again!").
-  - Weekly patient-facing recap: garden growth visual + spoken praise montage.
-  - Caregiver feedback digest: plain-language trend notes generated from reward trajectory (e.g., "Attention was best between 9–11 AM this week").
-- FR-3.7: **Cognitive Stability Index:** derived metric from rolling reward/completion/latency trends, visualized as a simple rising/falling tree icon for caregivers.
-- FR-3.8: **Predictive Alerts:** Successive Frustration Index spikes or Daily Life Sequence failures flag an alert to caregiver/ASHA dashboard (possible UTI/sleep-deprivation precursors).
-- FR-3.9: All model matrices (A_a, b_a) persisted locally; updated via rank-1 Sherman-Morrison in O(d²); no retraining loops, no cloud inference dependency.
-- FR-3.10: Exploration cap: α tuned so no more than ~30% of sessions introduce novel/harder arms, preventing distress.
-- FR-3.11: Voice interaction everywhere: offline ASR (Sherpa-ONNX/Vosk + AI4Bharat IndicConformer ONNX models) for commands and answers; offline TTS for all speech.
-
-**Acceptance Criteria:**
-- Prediction decision computed in < 50 ms on Cortex-A53 device.
-- After ≥ 20 sessions, ≥ 70% of presented games match caregiver-observed "good days" preferences (evaluated in pilot).
-- Feedback is audible after every completed game without fail.
-
----
-
-### 5.5 Feature F4 — Offline-First Architecture & Sync
-
-- FR-4.1: Absolute offline functionality: game logic, AI inference, ASR/TTS, storage all on-device.
-- FR-4.2: SQLite append-only event ledger + WatermelonDB lazy loading for fluid UI at hundreds of MB of telemetry.
-- FR-4.3: CRDT-based sync engine merges patient↔cloud↔ASHA data with zero conflict loss when connectivity returns.
-- FR-4.4: ASHA bridging: peer-to-peer sync (Bluetooth/Wi-Fi Direct) between patient device and ASHA tablet; aggregated push to district server when networked.
-- FR-4.5: Asset updates (new games/audio packs) download in background on Wi-Fi; app never requires them to function.
-
----
-
-### 5.6 Feature F5 — Gerontechnology UI/UX Standards (Mandatory)
-
-| Dimension | Platform Standard |
+| Risk | Current mitigation / remaining work |
 |---|---|
-| Touch targets | Minimum 48×48 px, generous spacing (tremor-safe) |
-| Contrast | > 4.5:1 normal text, > 3:1 large text; icons always paired with sans-serif labels (color never sole indicator) |
-| Motion | Static, user-initiated progression only; no auto-carousels/pop-ups |
-| Navigation | Flat & linear; permanent Back + Home anchors; max depth = 1 tap from home |
-| Instructions | Permanently pinned atop active task; spoken; never tutorial-once |
-| Failure states | Prohibited; Errorless Learning throughout |
-| Fonts | Large default (≥ 18sp scalable); high-legibility typeface |
-| Audio | All text speakable; volume boost mode |
-
----
-
-## 6. Technical Stack Summary
-
-| Layer | Technology |
-|---|---|
-| App framework | React Native / Flutter (offline-first) |
-| Local DB | SQLite + WatermelonDB (CRDT sync layer) |
-| On-device ML | TensorFlow Lite (INT8 quantized emotion CV model), custom LinUCB engine (native/Kotlin) |
-| Voice | Sherpa-ONNX / Vosk + AI4Bharat IndicConformer (ASR); system/offline TTS |
-| Sync | CRDT merge engine → secure clinical backend; P2P Bluetooth/Wi-Fi Direct for ASHA |
-| Target hardware | Android Go / 2GB RAM class, ARM Cortex-A53 |
-
----
-
-## 7. Success Metrics
-
-| Metric | Target (6-month pilot) |
-|---|---|
-| Session adherence (≥ 4 days/week) | ≥ 60% of enrolled patients |
-| Median medication confirmation rate | ≥ 80% |
-| Frustration-triggered session abandonment | ≤ 10% |
-| Cognitive Stability Index trend | Stable/improving for ≥ 50% of mild-stage users |
-| Crash-free offline sessions | ≥ 99.5% |
-| Onboarding completion (caregiver-assisted) | ≥ 90% |
-
----
-
-## 8. Release Plan
-
-- **MVP (v0.1):** Onboarding wizard, 4 Phase-1 games, medicine reminders, basic AI difficulty adjustment, offline storage.
-- **v0.2:** Full 11-game library, LinUCB next-game prediction, feedback engine, Memory Garden reinforcement loop, caregiver digest.
-- **v0.3:** ASHA P2P sync, dashboards, predictive alerts, predictive Cognitive Stability Index, additional languages.
-- **v1.0:** Clinical pilot hardening, accessibility audit, multi-state asset packs.
-
----
-
-## 9. Risks & Mitigations
-
-| Risk | Mitigation |
-|---|---|
-| Patient distress from novelty | α-capped exploration; instant de-escalation to reminiscence modules |
-| Data loss during long blackouts | CRDT append-only ledger; sync idempotency tests |
-| Device thermal/battery drain | INT8 models; O(d²) bandit updates; capped frame rates |
-| Caregiver misconfiguration of meds | Guided flows, photo-based verification, review summary before save |
-| Privacy of health/emotion data | Local-first storage; encryption at rest; explicit consent during onboarding |
-
----
-
-*End of PRD.*
+| Medical over-interpretation | Non-diagnostic copy, safety routing, no treatment advice; clinical review still required |
+| Device loss or browser-data clearing | Local persistence only; backup/export and recovery are not implemented |
+| Proxy abuse | Origin allowlist, body limits, rate limits, normalized errors; production authentication remains required |
+| Voice availability | Cached/browser speech fallback; offline ASR is not guaranteed |
+| Notification reliability | Permission/status UI and native scheduling; delivery depends on OS/browser settings |
+| Multi-device continuity | Not implemented; no CRDT/P2P/cloud sync claim should be made |

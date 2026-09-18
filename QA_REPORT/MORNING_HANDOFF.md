@@ -1,4 +1,6 @@
-# MORNING HANDOFF
+# MORNING HANDOFF (historical; reconciled 2026-09-10)
+
+> This handoff preserves the earlier QA state. The security and routing findings below were subsequently addressed in the current working tree; remaining observability work is explicitly labeled.
 
 ## What was tested
 - API Key Security & Obfuscation
@@ -7,25 +9,24 @@
 - Sarvam & Groq Fallback Handling
 - Forms, Input Sanitization, Onboarding Constraints
 
-## Most serious bugs
-1. **API Keys Statically Bundled** (`src/lib/config.ts`). The `VITE_` prefix guarantees the keys are shipped directly in the JS payload, risking massive quota theft.
-2. **Silent API Failures** (`src/lib/ai/AIService.ts` and `src/lib/voice/VoiceService.ts`). Empty `catch {}` blocks prevent monitoring tools from detecting actual API exhaustion or network failures.
+## Historical most serious bugs and current status
+1. **API Keys Statically Bundled** (`src/lib/config.ts`) — **RESOLVED**. Provider calls now cross `server/ai-proxy.mjs`; the client bundle scan is part of `npm run build`.
+2. **Silent API Failures** (`src/lib/ai/AIService.ts` and `src/lib/voice/VoiceService.ts`) — **PARTIALLY RESOLVED**. Chat/proxy failures now log and fall back; some voice and structured-output fallback catches remain quiet and are tracked in `BUG_DATABASE.md`.
 
-## Top 10 fixes recommended
-1. Extract API calls to an external backend proxy or serverless function.
-2. Add `console.error` and structured telemetry to all empty catch blocks.
-3. Update `useHashRoute` in `router.ts` to preserve query parameters for deep linking.
-4. Add ARIA accessibility labels to custom UI buttons (e.g. language selection).
-5. Add explicit boundary checks for `sessionStorage` in `reminders.ts` to log errors when storage is disabled.
+## Historical recommendations and current status
+1. Extract API calls to an external backend proxy or serverless function — **done** via `server/ai-proxy.mjs`.
+2. Add diagnostics to all fallback catches — **partial**; remaining work is tracked as BUG-003.
+3. Preserve query parameters in `useHashRoute` — **done** in `src/router.ts`.
+4. Add ARIA accessibility labels — **done** for current onboarding controls; covered by accessibility tests.
+5. Add explicit storage diagnostics — **accepted fallback behavior** for now; see BUG-005.
 
 ## All remaining bugs
 See `BUG_DATABASE.md` and `OVERNIGHT_TEST_REPORT.md` for a comprehensive list.
 
-## Suggested implementation order
-1. **Security Fixes**: Resolve API key leak first by creating a proxy.
-2. **Observability Fixes**: Remove empty catch blocks so subsequent QA testing can capture error traces.
-3. **Routing/State**: Fix `useHashRoute`.
-4. **Polish**: Add ARIA labels.
+## Current next actions
+1. Add production authentication/session controls in front of the optional proxy.
+2. Decide whether voice fallback diagnostics warrant structured telemetry.
+3. Run the current unit/E2E/security suites in CI; do not reuse the historical simulated counts as release evidence.
 
 ## Regression tests that should be added
 - `security.spec.ts`: Fetch `dist/assets/*.js` and assert `gsk_` is not present.
@@ -42,5 +43,5 @@ See `BUG_DATABASE.md` and `OVERNIGHT_TEST_REPORT.md` for a comprehensive list.
 - The local persistence offline-fallback logic works perfectly and is highly resilient. Do not rewrite `linucb.ts` or `db.ts` local caching.
 
 ## Questions that may require human decision
-1. **Backend Infrastructure**: The application currently has no backend. To fix the API key leak, do you want to introduce a Next.js API route, a Supabase Edge Function, or a Cloudflare Worker?
-2. **Error Telemetry**: Do you want to implement Sentry or Datadog for client-side error reporting, or simply use `console.error`?
+1. **Production gateway**: Which authenticated gateway/session or device-attestation layer should protect the deployed proxy?
+2. **Error telemetry**: Should remaining voice fallback failures be sent to a privacy-reviewed monitoring service, or remain local-only?

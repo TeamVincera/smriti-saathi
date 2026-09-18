@@ -3,14 +3,15 @@
  *
  * Local first: uses the browser's Web Speech API (SpeechRecognition) to
  * turn microphone audio into text. When that API is unavailable or fails,
- * falls back to Groq Whisper (if a Groq API key is configured) by recording
+ * falls back to the secure transcription proxy (when configured) by recording
  * a short clip with MediaRecorder and transcribing it server-side.
  *
  * The raw transcript is cleaned before it reaches the chat so Whisper's
  * word-repetition hallucinations ("Test Test Test…") do not flood the UI.
  */
 
-import { ENV_CONFIG } from '../config'
+import { requestAiTranscription } from '../ai/proxyClient'
+import { isAIAvailable } from '../ai/availability'
 
 export type SttStatus = 'idle' | 'listening' | 'transcribing' | 'unsupported' | 'mic-denied' | 'no-speech' | 'network' | 'error'
 
@@ -20,7 +21,6 @@ export interface GroqSttCallbacks {
   onError: (message: string) => void
 }
 
-const GROQ_STT_URL = 'https://api.groq.com/openai/v1/audio/transcriptions'
 const MAX_DURATION_MS = 8000
 const MAX_TRANSCRIPT_CHARS = 320
 
@@ -33,6 +33,9 @@ class GroqSpeechToTextClass {
   private starting = false
   private finalizing = false
   private stopRequested = false
+  private discardCurrentRecording = false
+  private recordingGeneration = 0
+  private transcriptionController: AbortController | null = null
   private language = ''
   private maxDurationMs = MAX_DURATION_MS
 
@@ -47,8 +50,15 @@ class GroqSpeechToTextClass {
   public async start(opts: { language?: string; maxDurationMs?: number; callbacks: GroqSttCallbacks }): Promise<void> {
     const { callbacks } = opts
     if (this.isBusy()) return
+    if (!isAIAvailable()) {
+      callbacks.onStatus('network')
+      callbacks.onError('Voice typing is unavailable while the secure AI service is offline. You can type your question instead.')
+      return
+    }
     this.starting = true
     this.stopRequested = false
+    this.discardCurrentRecording = false
+    const generation = ++this.recordingGeneration
     this.language = opts.language || ''
     this.maxDurationMs = opts.maxDurationMs ?? MAX_DURATION_MS
     this.chunks = []
@@ -70,8 +80,11 @@ class GroqSpeechToTextClass {
         callbacks.onStatus('mic-denied')
         return
       }
-      if (this.stopRequested || !this.starting) {
-        this.stopRequested = false
+      // getUserMedia can resolve after cancel() and a new start() have begun.
+      // Only the generation that still owns the request may attach a recorder;
+      // stale streams must be closed immediately to release the microphone.
+      if (generation !== this.recordingGeneration || this.stopRequested || !this.starting) {
+        if (generation === this.recordingGeneration) this.stopRequested = false
         this.releaseStream(stream)
         return
       }
@@ -91,27 +104,41 @@ class GroqSpeechToTextClass {
       }
 
       recorder.ondataavailable = (e: BlobEvent) => {
-        if (e.data && e.data.size > 0) this.chunks.push(e.data)
+        if (generation === this.recordingGeneration && this.recorder === recorder && e.data && e.data.size > 0) {
+          this.chunks.push(e.data)
+        }
       }
 
       recorder.onstop = () => {
-        this.active = false
-        this.finalizing = false
-        this.stopRequested = false
+        const discard = this.discardCurrentRecording || generation !== this.recordingGeneration
+        const ownsRecorder = generation === this.recordingGeneration && this.recorder === recorder
+        if (ownsRecorder) {
+          this.active = false
+          this.finalizing = false
+          this.stopRequested = false
+          this.discardCurrentRecording = false
+        }
+        if (this.recorder === recorder) this.recorder = null
         this.releaseStream(stream)
+        if (!ownsRecorder || discard) {
+          if (ownsRecorder) this.chunks = []
+          return
+        }
         const blob = new Blob(this.chunks, { type: recorder.mimeType || this.pickMimeType() || 'audio/webm' })
-        if (blob.size < 2000) {
+        this.chunks = []
+        if (blob.size < 800) {
           callbacks.onStatus('no-speech')
           return
         }
         callbacks.onStatus('transcribing')
-        void this.transcribe(blob, callbacks)
+        void this.transcribe(blob, callbacks, generation)
       }
 
       try {
         recorder.start(250)
       } catch {
         this.releaseStream(stream)
+        this.recorder = null
         callbacks.onStatus('error')
         return
       }
@@ -131,7 +158,7 @@ class GroqSpeechToTextClass {
 
       callbacks.onStatus('listening')
     } finally {
-      this.starting = false
+      if (generation === this.recordingGeneration) this.starting = false
     }
   }
 
@@ -160,9 +187,15 @@ class GroqSpeechToTextClass {
     }
     if (this.starting && !this.recorder) {
       this.stopRequested = true
+      this.discardCurrentRecording = true
+      this.recordingGeneration += 1
       this.starting = false
       return
     }
+    this.discardCurrentRecording = true
+    this.recordingGeneration += 1
+    this.transcriptionController?.abort()
+    this.transcriptionController = null
     this.active = false
     this.finalizing = false
     this.stopRequested = false
@@ -193,18 +226,21 @@ class GroqSpeechToTextClass {
     if (s) {
       for (const track of s.getTracks()) track.stop()
     }
-    if (!stream) this.stream = null
+    if (!stream || this.stream === stream) this.stream = null
   }
 
-  private async transcribe(blob: Blob, callbacks: GroqSttCallbacks): Promise<void> {
-    const apiKey = ENV_CONFIG.groqApiKey
-    if (!apiKey) {
+  private async transcribe(blob: Blob, callbacks: GroqSttCallbacks, generation: number): Promise<void> {
+    if (generation !== this.recordingGeneration || this.discardCurrentRecording) return
+    // WKWebView can expose a stale navigator.onLine value. The proxy health
+    // monitor is authoritative for whether cloud transcription is reachable.
+    if (!isAIAvailable()) {
       callbacks.onStatus('network')
-      callbacks.onError('Voice typing needs an internet connection.')
+      callbacks.onError('Voice typing is unavailable while the secure AI service is offline. You can type your question instead.')
       return
     }
 
     const controller = typeof AbortController !== 'undefined' ? new AbortController() : null
+    this.transcriptionController = controller
     const timeoutId = controller ? setTimeout(() => controller.abort(), 15000) : null
 
     try {
@@ -214,39 +250,53 @@ class GroqSpeechToTextClass {
       fd.append('response_format', 'json')
       if (this.language) fd.append('language', this.language)
 
-      const res = await fetch(GROQ_STT_URL, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: fd,
-        signal: controller?.signal,
-      })
-      if (!res.ok) throw new Error(`Groq STT HTTP ${res.status}`)
-
-      const data = await res.json()
-      const raw = typeof data?.text === 'string' ? data.text.trim() : ''
-      const text = sanitizeTranscript(raw)
+      const raw = await requestAiTranscription(fd, controller?.signal)
+      if (generation !== this.recordingGeneration) return
+      const text = sanitizeTranscript(raw || '')
       if (text) {
         callbacks.onTranscript(text)
       } else {
         callbacks.onStatus('no-speech')
       }
     } catch (err) {
+      if (generation !== this.recordingGeneration) return
       console.warn('[SpeechToText] Groq transcription failed:', err)
       callbacks.onStatus('network')
       callbacks.onError('Voice typing failed. Please try again or type your question.')
     } finally {
       if (timeoutId) clearTimeout(timeoutId)
+      if (this.transcriptionController === controller) this.transcriptionController = null
     }
   }
 }
 
 export const GroqSpeechToText = new GroqSpeechToTextClass()
 
+export function getSpeechRecognitionLanguage(lang: string): string {
+  switch (lang) {
+    case 'hi':
+      return 'hi-IN'
+    case 'as':
+      return 'as-IN'
+    case 'bn':
+      return 'bn-IN'
+    case 'brx':
+      // Bodo uses Devanagari script; hi-IN provides closest phonetic match
+      return 'hi-IN'
+    case 'mni':
+      // Manipuri in Eastern Nagari / Meetei; bn-IN provides closest acoustic match
+      return 'bn-IN'
+    case 'en':
+    default:
+      return 'en-IN'
+  }
+}
+
 export function whisperLanguage(lang: string): string {
-  if (lang === 'hi') return 'hi'
-  if (lang === 'bn') return 'bn'
-  if (lang === 'as') return 'bn' // Assamese is not a Whisper language; Bengali is the closest model
-  return '' // hi-IN-assamese speakers etc. → auto-detect
+  if (lang === 'hi' || lang === 'brx') return 'hi'
+  if (lang === 'bn' || lang === 'as' || lang === 'mni') return 'bn'
+  if (lang === 'en') return 'en'
+  return '' // auto-detect
 }
 
 export function sanitizeTranscript(text: string): string {

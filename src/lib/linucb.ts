@@ -1,5 +1,7 @@
 export const CONTEXT_DIM = 10
 
+const DEFAULT_REWARD_WEIGHTS = { completion: 0.4, accuracy: 0.4, hesitation: 0.1, frustration: 0.1 }
+
 export interface ContextVector extends Float64Array {}
 
 function identity(d: number): number[][] {
@@ -96,12 +98,18 @@ export function computeReward(
   accuracy: number,
   hesitationNorm: number,
   frustrationIndex: number,
-  w: { completion: number; accuracy: number; hesitation: number; frustration: number }
+  w?: Partial<typeof DEFAULT_REWARD_WEIGHTS>
 ): number {
+  const weights = {
+    completion: Number.isFinite(w?.completion) && (w?.completion ?? 0) >= 0 ? w!.completion! : DEFAULT_REWARD_WEIGHTS.completion,
+    accuracy: Number.isFinite(w?.accuracy) && (w?.accuracy ?? 0) >= 0 ? w!.accuracy! : DEFAULT_REWARD_WEIGHTS.accuracy,
+    hesitation: Number.isFinite(w?.hesitation) && (w?.hesitation ?? 0) >= 0 ? w!.hesitation! : DEFAULT_REWARD_WEIGHTS.hesitation,
+    frustration: Number.isFinite(w?.frustration) && (w?.frustration ?? 0) >= 0 ? w!.frustration! : DEFAULT_REWARD_WEIGHTS.frustration,
+  }
   return (
-    w.completion * Math.min(Math.max(completion, 0), 1) +
-    w.accuracy * Math.min(Math.max(accuracy, 0), 1) -
-    w.hesitation * Math.min(hesitationNorm, 1) -
-    w.frustration * Math.min(frustrationIndex, 1)
+    weights.completion * Math.min(Math.max(completion, 0), 1) +
+    weights.accuracy * Math.min(Math.max(accuracy, 0), 1) -
+    weights.hesitation * Math.min(hesitationNorm, 1) -
+    weights.frustration * Math.min(frustrationIndex, 1)
   )
 }

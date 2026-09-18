@@ -59,29 +59,31 @@ export interface SessionSummaryData {
   difficultyChange?: { from: number; to: number; reason: string }
 }
 
+function localDayStart(timestamp: number): number {
+  const date = new Date(timestamp)
+  date.setHours(0, 0, 0, 0)
+  return date.getTime()
+}
+
+function periodStart(period: ReportPeriod, now = Date.now()): number | null {
+  if (period === 'all') return null
+  if (period === 'today') return localDayStart(now)
+  const date = new Date(now)
+  date.setHours(0, 0, 0, 0)
+  // Calendar windows avoid a 23/25-hour DST day changing which sessions a
+  // person sees in a “week” or “month” report.
+  date.setDate(date.getDate() - (period === 'week' ? 6 : 29))
+  return date.getTime()
+}
+
 /**
  * Filters session records by the selected time period
  */
 export function filterSessionsByPeriod(sessions: SessionRecord[], period: ReportPeriod): SessionRecord[] {
   if (!sessions || sessions.length === 0) return []
   const now = Date.now()
-
-  if (period === 'today') {
-    const todayStr = new Date(now).toDateString()
-    return sessions.filter((s) => new Date(s.startedAt).toDateString() === todayStr)
-  }
-
-  if (period === 'week') {
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
-    return sessions.filter((s) => s.startedAt >= sevenDaysAgo)
-  }
-
-  if (period === 'month') {
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
-    return sessions.filter((s) => s.startedAt >= thirtyDaysAgo)
-  }
-
-  return [...sessions]
+  const start = periodStart(period, now)
+  return start === null ? [...sessions] : sessions.filter((s) => s.startedAt >= start && s.startedAt <= now)
 }
 
 /**
@@ -96,18 +98,11 @@ export function computePeriodMetrics(
   const sessionCount = filteredSessions.length
 
   // Filter observations matching the time window
-  let filteredObs = observations
   const now = Date.now()
-  if (period === 'today') {
-    const todayStr = new Date(now).toDateString()
-    filteredObs = observations.filter((o) => new Date(o.timestamp).toDateString() === todayStr)
-  } else if (period === 'week') {
-    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000
-    filteredObs = observations.filter((o) => o.timestamp >= sevenDaysAgo)
-  } else if (period === 'month') {
-    const thirtyDaysAgo = now - 30 * 24 * 60 * 60 * 1000
-    filteredObs = observations.filter((o) => o.timestamp >= thirtyDaysAgo)
-  }
+  const start = periodStart(period, now)
+  const filteredObs = start === null
+    ? observations
+    : observations.filter((o) => o.timestamp >= start && o.timestamp <= now)
 
   const questionsAttempted = filteredObs.length > 0 ? filteredObs.length : filteredSessions.length * 5
   const questionsCorrect =

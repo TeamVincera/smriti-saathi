@@ -3,6 +3,7 @@ import {
   getMeds, getMedLog, addMedLog, addEvent, loadDailyReminders, loadAppointments, loadProfile,
 } from './db'
 import { startAlarmSound, stopAlarmSound } from './audio'
+import { syncAllAlarmsToNative } from './alarmService'
 
 export type ReminderType = 'med' | 'daily' | 'appointment' | 'routine'
 
@@ -35,15 +36,25 @@ const listeners = new Set<Listener>()
 let current: ActiveAlarm | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 let langGetter: () => Language = () => 'en'
+let engineGeneration = 0
+let tickInFlight = false
+const completedAlarmKeys = new Set<string>()
 
 function dateStrOf(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function schedTs(dateStr: string, time: string): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr) || !/^\d{2}:\d{2}$/.test(time)) return Number.NaN
   const [y, mo, dd] = dateStr.split('-').map(Number)
   const [h, mi] = time.split(':').map(Number)
-  return new Date(y, mo - 1, dd, h, mi, 0, 0).getTime()
+  if (mo < 1 || mo > 12 || dd < 1 || dd > 31 || h < 0 || h > 23 || mi < 0 || mi > 59) return Number.NaN
+  const result = new Date(y, mo - 1, dd, h, mi, 0, 0)
+  // Date() normalises invalid civil times (including DST gaps). Skipping such
+  // a record is safer than firing a reminder at a different time or date.
+  if (result.getFullYear() !== y || result.getMonth() !== mo - 1 || result.getDate() !== dd
+    || result.getHours() !== h || result.getMinutes() !== mi) return Number.NaN
+  return result.getTime()
 }
 
 export function subscribeReminders(fn: Listener): () => void {
@@ -64,18 +75,30 @@ function emit(alarm: ActiveAlarm | null) {
   listeners.forEach((l) => l(alarm))
 }
 
-async function loggedSince(): Promise<Set<string>> {
+export function triggerAlarmFromExternal(alarm: ActiveAlarm) {
+  emit(alarm)
+}
+
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+async function loggedForDate(dateStr: string): Promise<Set<string>> {
   const entries = await getMedLog()
-  const now = Date.now()
   const set = new Set<string>()
   for (const e of entries) {
-    if (now - e.ts < 24 * 3600 * 1000) set.add(`${e.medId}|${e.scheduledFor}`)
+    // Medication occurrences are local-calendar based. A dose logged within
+    // the previous rolling 24 hours must not suppress today's dose at the
+    // same scheduled time.
+    if (e.status === 'taken' && localDateKey(new Date(e.ts)) === dateStr) {
+      set.add(`${e.medId}|${dateStr}|${e.scheduledFor}`)
+    }
   }
   return set
 }
 
 export async function confirmTaken(med: Med, scheduledFor: string, method: 'tap' | 'slide' = 'tap') {
-  await addMedLog({
+  const logKey = await addMedLog({
     medId: med.id,
     medName: med.name,
     scheduledFor,
@@ -83,31 +106,48 @@ export async function confirmTaken(med: Med, scheduledFor: string, method: 'tap'
     status: 'taken',
     method,
   })
-  void addEvent({ kind: 'med_taken', data: { medId: med.id, method } })
+  if (logKey !== undefined) {
+    void addEvent({ kind: 'med_taken', data: { medId: med.id, method } })
+  }
 }
 
 export async function confirmAlarm(alarm: ActiveAlarm, method: 'slide' | 'tap' = 'slide') {
+  if (completedAlarmKeys.has(alarm.key) || getStorageVal(`done:${alarm.key}`)) {
+    emit(null)
+    return
+  }
+  completedAlarmKeys.add(alarm.key)
   stopAlarmSound()
-  if (alarm.type === 'med' && alarm.details?.medId) {
-    await addMedLog({
-      medId: alarm.details.medId,
-      medName: alarm.title,
-      scheduledFor: alarm.time,
-      ts: Date.now(),
-      status: 'taken',
-      method,
-    })
-    void addEvent({ kind: 'med_taken', data: { medId: alarm.details.medId, method } })
-  } else {
-    void addEvent({ kind: 'reminder_completed', data: { reminderId: alarm.id, type: alarm.type, method } })
-  }
   try {
-    localStorage.setItem(`done:${alarm.key}`, String(Date.now()))
-    sessionStorage.setItem(`done:${alarm.key}`, String(Date.now()))
-  } catch (err) {
-    console.error(`[Reminders] Failed to set storage done:${alarm.key}`, err)
+    if (alarm.type === 'med' && alarm.details?.medId) {
+      const logKey = await addMedLog({
+        medId: alarm.details.medId,
+        medName: alarm.title,
+        scheduledFor: alarm.time,
+        ts: Date.now(),
+        status: 'taken',
+        method,
+      })
+      if (logKey !== undefined) {
+        void addEvent({ kind: 'med_taken', data: { medId: alarm.details.medId, method } })
+      }
+    } else {
+      void addEvent({ kind: 'reminder_completed', data: { reminderId: alarm.id, type: alarm.type, method } })
+    }
+    try {
+      localStorage.setItem(`done:${alarm.key}`, String(Date.now()))
+      sessionStorage.setItem(`done:${alarm.key}`, String(Date.now()))
+    } catch (err) {
+      console.error(`[Reminders] Failed to set storage done:${alarm.key}`, err)
+    }
+    void syncAllAlarmsToNative(langGetter())
+    emit(null)
+  } catch (error) {
+    // A failed IndexedDB write must remain retryable rather than permanently
+    // suppressing the occurrence in this tab.
+    completedAlarmKeys.delete(alarm.key)
+    throw error
   }
-  emit(null)
 }
 
 export async function snoozeAlarm(alarm: ActiveAlarm) {
@@ -119,6 +159,7 @@ export async function snoozeAlarm(alarm: ActiveAlarm) {
     console.error(`[Reminders] Failed to set storage snooze:${alarm.key}`, err)
   }
   void addEvent({ kind: 'reminder_dismissed', data: { reminderId: alarm.id, reason: 'snooze' } })
+  void syncAllAlarmsToNative(langGetter())
   emit(null)
 }
 
@@ -138,8 +179,13 @@ function getStorageVal(key: string): string | null {
 export function startReminderEngine(getLang: () => Language) {
   langGetter = getLang
   if (timer) clearInterval(timer)
+  const generation = ++engineGeneration
+  completedAlarmKeys.clear()
+  void syncAllAlarmsToNative(getLang())
 
   const tick = async () => {
+    if (generation !== engineGeneration || tickInFlight) return
+    tickInFlight = true
     try {
       if (current) return
       const now = Date.now()
@@ -150,13 +196,15 @@ export function startReminderEngine(getLang: () => Language) {
 
       // 1. Check Active Medicines
       const meds = (await getMeds()).filter((m) => m.active)
-      const doneMeds = await loggedSince()
+      if (generation !== engineGeneration) return
+      const doneMeds = await loggedForDate(dstr)
+      if (generation !== engineGeneration) return
       for (const med of meds) {
         for (const time of med.times) {
           const ts = schedTs(dstr, time)
           const key = `med:${med.id}|${ts}`
           if (now >= ts && now < ts + GRACE_MS) {
-            const isLogged = doneMeds.has(`${med.id}|${time}`) || doneMeds.has(`${med.id}|${ts}`)
+            const isLogged = doneMeds.has(`${med.id}|${dstr}|${time}`) || doneMeds.has(`${med.id}|${dstr}|${ts}`)
             if (!isLogged) {
               let snoozedUntil = 0
               let isDone = false
@@ -167,6 +215,7 @@ export function startReminderEngine(getLang: () => Language) {
                 console.warn(`[Reminders] Failed to read storage for ${key}`, err)
               }
               if (!isDone && now >= snoozedUntil) {
+                if (generation !== engineGeneration) return
                 emit({
                   id: med.id,
                   key,
@@ -192,6 +241,7 @@ export function startReminderEngine(getLang: () => Language) {
 
       // 2. Check Daily Reminders
       const dailyReminders = (await loadDailyReminders()).filter((r) => r.active ?? r.enabled ?? true)
+      if (generation !== engineGeneration) return
       for (const reminder of dailyReminders) {
         const ts = schedTs(dstr, reminder.time)
         const key = `daily:${reminder.id}|${ts}`
@@ -205,6 +255,7 @@ export function startReminderEngine(getLang: () => Language) {
             console.warn(`[Reminders] Failed to read storage for ${key}`, err)
           }
           if (!isDone && now >= snoozedUntil) {
+            if (generation !== engineGeneration) return
             emit({
               id: reminder.id,
               key,
@@ -221,6 +272,7 @@ export function startReminderEngine(getLang: () => Language) {
 
       // 3. Check Appointments
       const appointments = (await loadAppointments()).filter((a) => (a.active ?? a.enabled ?? true) && a.date === dstr)
+      if (generation !== engineGeneration) return
       for (const appt of appointments) {
         const ts = schedTs(dstr, appt.time)
         const key = `appt:${appt.id}|${ts}`
@@ -234,6 +286,7 @@ export function startReminderEngine(getLang: () => Language) {
             console.warn(`[Reminders] Failed to read storage for ${key}`, err)
           }
           if (!isDone && now >= snoozedUntil) {
+            if (generation !== engineGeneration) return
             emit({
               id: appt.id,
               key,
@@ -254,6 +307,7 @@ export function startReminderEngine(getLang: () => Language) {
 
       // 4. Check Routine Events
       const prof = await loadProfile()
+      if (generation !== engineGeneration) return
       if (prof?.routine) {
         const routineItems: { key: string; time: string; title: string; titleHi: string; emoji: string }[] = [
           { key: 'wake', time: prof.routine.wake || '06:00', title: 'Wake Up & Morning Care', titleHi: 'सुबह उठने और ताजगी का समय', emoji: '🌅' },
@@ -277,6 +331,7 @@ export function startReminderEngine(getLang: () => Language) {
                 console.warn(`[Reminders] Failed to read storage for ${key}`, err)
               }
               if (!isDone && now >= snoozedUntil) {
+                if (generation !== engineGeneration) return
                 emit({
                   id: `routine-${item.key}`,
                   key,
@@ -295,6 +350,8 @@ export function startReminderEngine(getLang: () => Language) {
       }
     } catch (err) {
       console.error('[Reminders] Engine tick failed uncaught error:', err)
+    } finally {
+      tickInFlight = false
     }
   }
 

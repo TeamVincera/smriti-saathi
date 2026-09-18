@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useApp } from '../state'
 import { subscribeReminders, confirmAlarm, snoozeAlarm, type ActiveAlarm } from '../lib/reminders'
 import { VoiceService } from '../lib/voice'
@@ -7,6 +7,7 @@ import { Icon } from '../components/Icons'
 export function ReminderOverlay() {
   const { lang, profile, t } = useApp()
   const [alarm, setAlarm] = useState<ActiveAlarm | null>(null)
+  const confirmButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     return subscribeReminders((newAlarm) => {
@@ -18,22 +19,30 @@ export function ReminderOverlay() {
     })
   }, [lang])
 
+  useEffect(() => {
+    if (!alarm) return
+    const frame = window.requestAnimationFrame(() => confirmButtonRef.current?.focus())
+    return () => window.cancelAnimationFrame(frame)
+  }, [alarm])
+
   if (!alarm) return null
 
   const typeLabels: Record<string, { label: string; color: string }> = {
     med: { label: t('reminder_time'), color: '#FF5F56' },
     daily: { label: t('nav_reminders'), color: 'var(--success)' },
-    appointment: { label: 'Appointment', color: 'var(--info)' },
-    routine: { label: 'Routine', color: 'var(--warn)' },
+    appointment: { label: t('reminder_badge_appointment'), color: 'var(--info)' },
+    routine: { label: t('reminder_badge_routine'), color: 'var(--warn)' },
   }
 
   const typeBadge = typeLabels[alarm.type] ?? typeLabels.daily
 
   return (
     <div
-      className="reminder-overlay"
+      className="reminder-overlay patient-reminder-overlay"
       role="alertdialog"
-      aria-label={alarm.title}
+      aria-modal="true"
+      aria-labelledby="reminder-overlay-title"
+      aria-describedby={alarm.subtitle ? 'reminder-overlay-subtitle' : undefined}
       style={{
         position: 'fixed',
         inset: 0,
@@ -109,6 +118,7 @@ export function ReminderOverlay() {
         </div>
 
         <h1
+          id="reminder-overlay-title"
           style={{
             fontFamily: 'var(--font-display)',
             fontSize: 'clamp(26px, 6vw, 36px)',
@@ -123,6 +133,7 @@ export function ReminderOverlay() {
 
         {alarm.subtitle && (
           <p
+            id="reminder-overlay-subtitle"
             style={{
               fontSize: 'var(--fs-body-lg)',
               color: 'rgba(255, 255, 255, 0.85)',
@@ -155,6 +166,7 @@ export function ReminderOverlay() {
         {/* Large 96px Green Action Target */}
         <button
           type="button"
+          ref={confirmButtonRef}
           onClick={() => void confirmAlarm(alarm, 'tap')}
           style={{
             width: 96,

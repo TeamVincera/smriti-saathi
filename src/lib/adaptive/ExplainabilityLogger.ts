@@ -11,43 +11,76 @@ const MAX_EXPLAINABILITY_LOGS = 50
 class ExplainabilityLoggerClass {
   private logs: SelectionExplanation[] = []
   private isLoaded = false
+  private loading: Promise<void>
+  private pendingLogs: SelectionExplanation[] = []
+  private clearPending = false
+  private persistQueue: Promise<void> = Promise.resolve()
 
   constructor() {
-    void this.load()
+    this.loading = this.hydrate()
   }
 
   public async load(): Promise<void> {
-    if (this.isLoaded) return
-    try {
-      const stored = await dbGet<SelectionExplanation[]>('kv', 'adaptive_explainability_logs')
-      if (stored && Array.isArray(stored)) {
-        this.logs = stored
-      }
-    } catch {}
-    this.isLoaded = true
+    await this.loading
   }
 
-  private async persist(): Promise<void> {
+  private async hydrate(): Promise<void> {
+    let shouldPersist = false
     try {
-      await dbSet('kv', this.logs.slice(-MAX_EXPLAINABILITY_LOGS), 'adaptive_explainability_logs')
-    } catch {}
+      const stored = await dbGet<SelectionExplanation[]>('kv', 'adaptive_explainability_logs')
+      const pending = this.pendingLogs
+      const clear = this.clearPending
+      shouldPersist = clear || pending.length > 0
+      this.pendingLogs = []
+      this.clearPending = false
+      this.logs = clear ? [] : stored && Array.isArray(stored) ? stored.slice(-MAX_EXPLAINABILITY_LOGS) : []
+      this.logs.push(...pending)
+    } catch {
+      const pending = this.pendingLogs
+      const clear = this.clearPending
+      this.pendingLogs = []
+      this.clearPending = false
+      shouldPersist = clear || pending.length > 0
+      // logDecision applies synchronously before hydration; rebuild from a
+      // clean in-memory snapshot before replaying pending entries.
+      this.logs = []
+      this.logs.push(...pending)
+    }
+    this.isLoaded = true
+    if (shouldPersist) await this.enqueuePersist()
+  }
+
+  private enqueuePersist(): Promise<void> {
+    const snapshot = this.logs.slice(-MAX_EXPLAINABILITY_LOGS)
+    this.persistQueue = this.persistQueue.then(async () => {
+      try {
+        await dbSet('kv', snapshot, 'adaptive_explainability_logs')
+      } catch {}
+    })
+    return this.persistQueue
   }
 
   public logDecision(explanation: SelectionExplanation): void {
     this.logs.push(explanation)
+    if (!this.isLoaded) this.pendingLogs.push(explanation)
     if (this.logs.length > MAX_EXPLAINABILITY_LOGS) {
       this.logs = this.logs.slice(-MAX_EXPLAINABILITY_LOGS)
     }
-    void this.persist()
+    if (this.isLoaded) void this.enqueuePersist()
   }
 
   public getRecentLogs(limit = 10): SelectionExplanation[] {
     return [...this.logs].reverse().slice(0, limit)
   }
 
-  public clear(): void {
+  public clear(): Promise<void> {
     this.logs = []
-    void this.persist()
+    this.pendingLogs = []
+    if (!this.isLoaded) {
+      this.clearPending = true
+      return this.loading
+    }
+    return this.enqueuePersist()
   }
 }
 

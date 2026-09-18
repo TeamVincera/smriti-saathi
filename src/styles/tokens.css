@@ -74,11 +74,12 @@
   --fs-display: clamp(24px, 3.5vw, 32px);
   --fs-title: clamp(20px, 2.5vw, 24px);
   --fs-subtitle: clamp(17px, 2vw, 20px);
-  --fs-body: clamp(15px, 1.5vw, 17px);
-  --fs-body-sm: clamp(14px, 1.3vw, 15px);
-  --fs-body-lg: clamp(16px, 1.7vw, 18px);
-  --fs-caption: clamp(12px, 1.1vw, 13px);
-  --fs-label: clamp(11px, 1vw, 12px);
+  /* Keep copy comfortably readable at phone sizes while still scaling on tablets. */
+  --fs-body: clamp(16px, 1.5vw, 18px);
+  --fs-body-sm: clamp(15px, 1.3vw, 16px);
+  --fs-body-lg: clamp(17px, 1.7vw, 20px);
+  --fs-caption: clamp(13px, 1.1vw, 14px);
+  --fs-label: clamp(12px, 1vw, 13px);
 
   /* ── Radii ── */
   --r-xs: 4px;
@@ -124,8 +125,8 @@
   --safe-right: env(safe-area-inset-right, 0px);
 
   /* ── Header & Navigation Dimensions ── */
-  --nav-h: 56px;
-  --tabbar-h: 64px;
+  --nav-h: 60px;
+  --tabbar-h: 72px;
 
   /* ── Device Adaptive Clearance (Dynamic Island / Notch / Gesture Pill) ── */
   /* Guarantees no interactive element or heading collides with iPhone Dynamic Island, punch holes, or status bar */
@@ -135,24 +136,32 @@
   --side-clearance: max(var(--s-lg), var(--safe-left));
   --min-touch-target: 48px;
 
+  /* Shared responsive layout primitives. Keeping these in tokens makes the
+     phone/tablet relationship consistent across screens with inline styles. */
+  --content-gutter: clamp(16px, 4vw, 28px);
+  --content-gap: clamp(16px, 2.5vw, 24px);
+  --focus-ring: 0 0 0 4px rgba(22, 36, 54, 0.18);
+
   /* ── Fluid Max Widths ── */
-  --max-w: 480px;
-  --container-max-w: 520px;
+  --max-w: 540px;
+  --container-max-w: 680px;
 }
 
 /* Tablet & iPad Viewports */
 @media (min-width: 640px) {
   :root {
-    --max-w: 580px;
-    --container-max-w: 620px;
+    --max-w: 640px;
+    --container-max-w: 760px;
+    --content-gutter: clamp(24px, 5vw, 48px);
   }
 }
 
 /* Large Tablets & Desktop/Laptops */
 @media (min-width: 1024px) {
   :root {
-    --max-w: 640px;
-    --container-max-w: 700px;
+    --max-w: 720px;
+    --container-max-w: 960px;
+    --content-gutter: clamp(32px, 6vw, 72px);
   }
 }
 

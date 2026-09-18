@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genSafariScene } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -16,6 +16,7 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
   const scene = useMemo(() => genSafariScene(rng, level), [rng, level, sceneIdx])
   const [found, setFound] = useState<string[]>([])
   const [glowCell, setGlowCell] = useState<number | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const strayTapsThisScene = useRef(0)
   const unpromptedTotal = useRef(0)
   const totalTargets = useRef(0)
@@ -30,7 +31,7 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
     if (found.length >= targetCount) return
     const remaining = scene.cells.filter((c) => scene.targets.includes(c.v) && !found.includes(c.v))
     if (remaining.length === 0) return
-    const t = setTimeout(() => setGlowCell(remaining[0].i), 4000)
+    const t = scheduleTimeout(() => setGlowCell(remaining[0].i), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [found])
@@ -43,7 +44,7 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
       logAction('cued')
       playSoftCue()
       setWrongCell(i)
-      setTimeout(() => setWrongCell(null), 550)
+      scheduleTimeout(() => setWrongCell(null), 550)
       return
     }
     if (found.includes(v)) return
@@ -55,7 +56,7 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
     unpromptedTotal.current++
     if (next.length >= targetCount) {
       recordAnswer(DOMAIN, level, strayTapsThisScene.current <= 1)
-      setTimeout(() => {
+      scheduleTimeout(() => {
         if (sceneIdx + 1 < TOTAL_SCENES) {
           setLevel(nextLevel(DOMAIN))
           setSceneIdx((s) => s + 1)
@@ -88,14 +89,17 @@ export function WildlifeSafari({ logAction, complete }: GameProps) {
         {scene.cells.map((c) => (
           <button
             key={c.i}
-            className={`scene-cell ${found.includes(c.v) ? 'found' : ''} ${wrongCell === c.i ? 'wrong' : ''}`}
-            style={glowCell === c.i ? { animation: 'pulseGentle 1.2s infinite' } : undefined}
+            className={`scene-cell ${found.includes(c.v) ? 'answer-correct' : ''} ${wrongCell === c.i ? 'answer-guidance' : ''} ${glowCell === c.i ? 'hint' : ''}`}
+            aria-pressed={found.includes(c.v)}
+            data-answer-state={found.includes(c.v) ? 'correct' : wrongCell === c.i ? 'guidance' : glowCell === c.i ? 'hint' : 'idle'}
+            aria-label={`scene tile ${c.i + 1}${found.includes(c.v) ? ', found' : ''}`}
             onClick={() => tap(c.v, c.i)}
           >
             {c.v}
           </button>
         ))}
       </div>
+      <AnswerFeedback state={wrongCell !== null ? 'guidance' : found.length > 0 ? 'success' : 'idle'} />
     </div>
   )
 }

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genWordRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -19,6 +19,7 @@ export function WordHarvest({ logAction, complete }: GameProps) {
   const round = useMemo(() => genWordRound(rng, level), [rng, level, roundIdx])
   const [foundLabels, setFoundLabels] = useState<string[]>([])
   const [wrongFlash, setWrongFlash] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const missesThisRound = useRef(0)
   const totalWords = useRef(0)
   const unpromptedWords = useRef(0)
@@ -37,7 +38,7 @@ export function WordHarvest({ logAction, complete }: GameProps) {
       logAction('unprompted')
       if (next.length >= round.correct.length) {
         recordAnswer(DOMAIN, level, missesThisRound.current <= 1)
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (roundIdx + 1 < TOTAL_ROUNDS) {
             setLevel(nextLevel(DOMAIN))
             setRoundIdx((r) => r + 1)
@@ -58,7 +59,7 @@ export function WordHarvest({ logAction, complete }: GameProps) {
       logAction('cued')
       setWrongFlash(label)
       playSoftCue()
-      setTimeout(() => setWrongFlash(null), 600)
+      scheduleTimeout(() => setWrongFlash(null), 600)
     }
   }
 
@@ -73,7 +74,9 @@ export function WordHarvest({ logAction, complete }: GameProps) {
           return (
             <button
               key={o.label}
-              className={`choice-btn ${isFound ? 'correct' : ''} ${isWrongFlash ? 'wrong' : ''}`}
+              className={`choice-btn ${isFound ? 'answer-correct' : ''} ${isWrongFlash ? 'answer-guidance' : ''}`}
+              aria-pressed={isFound}
+              data-answer-state={isFound ? 'correct' : isWrongFlash ? 'guidance' : 'idle'}
               style={{ minWidth: 130, opacity: isFound ? 1 : undefined }}
               onClick={() => tap(o.label)}
             >
@@ -84,6 +87,7 @@ export function WordHarvest({ logAction, complete }: GameProps) {
           )
         })}
       </div>
+      <AnswerFeedback state={wrongFlash !== null ? 'guidance' : foundLabels.length > 0 ? 'success' : 'idle'} />
       <p className="caption">Tap everything that belongs. Nothing here can break.</p>
     </div>
   )

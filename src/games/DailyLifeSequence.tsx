@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { shuffle, RoundHeader } from './shared'
+import { AnswerFeedback, shuffle, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genSequenceRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -20,6 +20,7 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
   const shuffledIndices = useMemo(() => shuffle(seq.steps.map((_, i) => i)), [seq])
   const [placed, setPlaced] = useState<number[]>([])
   const [glowItem, setGlowItem] = useState<number | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
   const cuedThisRound = useRef(0)
   const totalSteps = useRef(0)
@@ -31,7 +32,7 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
   }, [seq])
 
   useEffect(() => {
-    const t = setTimeout(() => setGlowItem(correctNext()), 4000)
+    const t = scheduleTimeout(() => setGlowItem(correctNext()), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [placed])
@@ -42,8 +43,6 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
     }
     return null
   }
-
-  const [wrongItemIdx, setWrongItemIdx] = useState<number | null>(null)
 
   function tapItem(itemIdx: number) {
     if (placed.includes(itemIdx)) return
@@ -58,15 +57,15 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
       cuedThisRound.current++
       playSoftCue()
       setGlowItem(correctNext())
+      return
     }
-    setWrongItemIdx(null)
     setGlowItem(null)
     if (isCorrect) {
       const next = [...placed, itemIdx]
       setPlaced(next)
       if (next.length >= seq.steps.length) {
         recordAnswer(DOMAIN, level, cuedThisRound.current <= 1)
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (seqIdx + 1 < TOTAL_ROUNDS) {
             setLevel(nextLevel(DOMAIN))
             setSeqIdx((i) => i + 1)
@@ -87,6 +86,7 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
 
   const remaining = shuffledIndices.filter((i) => !placed.includes(i))
   const seqName = lang === 'hi' && seq.nameHi ? seq.nameHi : seq.name
+  const feedbackState = glowItem !== null ? 'guidance' : placed.length > 0 ? 'success' : 'idle'
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
@@ -104,7 +104,8 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
               key={slot}
               className={`slot ${isFilled ? 'filled' : ''}`}
               style={{
-                minWidth: 100,
+                minWidth: 'min(100px, 100%)',
+                maxWidth: '100%',
                 minHeight: 56,
                 padding: '6px 12px',
                 borderRadius: 'var(--r-md)',
@@ -136,17 +137,18 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
       </p>
 
       {/* Selectable Step Tiles Grid */}
-      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, width: '100%' }}>
+      <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(130px, 100%), 1fr))', gap: 10, width: '100%' }}>
         {remaining.map((itemIdx) => {
           const step = seq.steps[itemIdx]
           const label = lang === 'hi' && step.labelHi ? step.labelHi : step.label
           const isGlow = glowItem === itemIdx
-          const isWrong = wrongItemIdx === itemIdx
-
           return (
             <button
               key={itemIdx}
-              className={`item-tile ${isGlow ? 'glow' : ''} ${isWrong ? 'wrong' : ''}`}
+              className={`item-tile ${isGlow ? 'glow' : ''}`}
+              aria-pressed={isGlow}
+              data-answer-state={isGlow ? 'hint' : 'idle'}
+              aria-label={`${label}${isGlow ? (lang === 'hi' ? ' — संकेत' : ' — helpful clue') : ''}`}
               onClick={() => tapItem(itemIdx)}
               style={{
                 display: 'flex',
@@ -155,8 +157,8 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
                 textAlign: 'center',
                 padding: '14px 12px',
                 borderRadius: 'var(--r-lg)',
-                background: isWrong ? 'var(--error-soft)' : 'var(--card)',
-                border: isWrong ? '3px solid var(--error)' : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                background: 'var(--card)',
+                border: isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                 boxShadow: 'var(--shadow-sm)',
                 minHeight: 110,
                 cursor: 'pointer',
@@ -164,11 +166,13 @@ export function DailyLifeSequence({ difficulty, logAction, complete }: GameProps
               }}
             >
               <span style={{ fontSize: 44, lineHeight: 1.1, marginBottom: 6 }}>{step.emoji}</span>
-              <strong style={{ fontSize: 14, color: isWrong ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{label}</strong>
+              <strong style={{ fontSize: 14, color: 'var(--ink)' }}>{label}</strong>
             </button>
           )
         })}
       </div>
+
+      <AnswerFeedback state={feedbackState} />
 
       <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted)' }}>
         Pieces snap gently into their right place.

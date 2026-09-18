@@ -77,7 +77,7 @@ const playSample = () =>
   const page = await ctx.newPage()
   let transcript = ''
   page.on('response', async (r) => {
-    if (r.url().includes('api.groq.com') && r.url().includes('transcriptions')) {
+    if (r.url().includes('/api/ai/transcribe')) {
       if (r.ok()) {
         try {
           const j = await r.json()

@@ -80,7 +80,7 @@ const seed = async (page) => {
   const page = await ctx.newPage()
 
   // Mock Groq Whisper to return the pathological hallucination
-  await page.route('**/api.groq.com/**/transcriptions', async (route) => {
+  await page.route('**/api/ai/transcribe', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -88,7 +88,7 @@ const seed = async (page) => {
     })
   })
   // Let the real chat/AI completions pass through untouched
-  await page.unroute('**/api.groq.com/openai/v1/chat/completions').catch(() => {})
+  await page.unroute('**/api/ai/chat').catch(() => {})
   await seed(page)
 
   await page.click('[data-testid="ai-chat-btn"]')

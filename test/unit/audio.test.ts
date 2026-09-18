@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest'
-import { playChime, playSoftCue, playTap, playInstrument, unlockAudio } from '../../src/lib/audio'
+import { describe, it, expect, vi } from 'vitest'
+import { playChime, playSoftCue, playTap, playInstrument, playMelody, stopAllAudio, unlockAudio } from '../../src/lib/audio'
 
 describe('Web Audio Synthesizer Engine', () => {
   it('unlocks audio context without error', () => {
@@ -27,5 +27,19 @@ describe('Web Audio Synthesizer Engine', () => {
 
     const pepaDur = playInstrument('pepa')
     expect(pepaDur).toBe(4000)
+  })
+
+  it('cancels delayed melody notes when audio is stopped', () => {
+    vi.useFakeTimers()
+    try {
+      stopAllAudio()
+      const before = vi.getTimerCount()
+      playMelody(['dhol', 'flute'], 1)
+      expect(vi.getTimerCount()).toBeGreaterThan(before)
+      stopAllAudio()
+      expect(vi.getTimerCount()).toBe(before)
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { seedBaselineForColdStart, sessionCapReached, adherenceRate, setAdherenceRate, recommendNextGame, recordSessionResult } from '../../src/lib/ai'
-import { wipeAll } from '../../src/lib/db'
+import { dbGet, dbSet, loadConfig, wipeAll } from '../../src/lib/db'
+import { DEFAULT_CONFIG } from '../../src/lib/types'
 
 describe('AI Recommendation & Adaptation Engine', () => {
   beforeEach(async () => {
@@ -59,5 +60,48 @@ describe('AI Recommendation & Adaptation Engine', () => {
     expect(record.id).toBeDefined()
     expect(record.accuracy).toBe(0.9)
     expect(record.reward).toBeGreaterThan(0)
+  })
+
+  it('normalizes a partial legacy config before recording a session', async () => {
+    // This mirrors a partial settings write: the daily limit exists, but the
+    // nested reward weights and other current fields do not.
+    await dbSet('kv', { maxSessionsPerDay: 10 }, 'config')
+
+    const record = await recordSessionResult({
+      gameId: 'faces',
+      difficulty: 0,
+      startedAt: Date.now() - 120000,
+      completion: 1,
+      accuracy: 1,
+      avgLatencyMs: 2400,
+      hesitations: 0,
+      cuesUsed: 0,
+      frustrationIndex: 0,
+      exploration: false,
+    })
+
+    expect(record.reward).toBeCloseTo(DEFAULT_CONFIG.weights.completion + DEFAULT_CONFIG.weights.accuracy)
+    expect(Number.isFinite(record.reward)).toBe(true)
+
+    const normalized = await loadConfig()
+    expect(normalized).toEqual({ ...DEFAULT_CONFIG, maxSessionsPerDay: 10 })
+    expect(await dbGet<unknown>('kv', 'config')).toEqual(normalized)
+  })
+
+  it('deep-merges partial reward weights and repairs malformed scalar settings', async () => {
+    await dbSet('kv', {
+      weights: { completion: 0.7 },
+      alpha: 'not-a-number',
+      maxSessionsPerDay: 0,
+      gracePeriodMin: -1,
+      theme: 'unknown',
+    }, 'config')
+
+    const normalized = await loadConfig()
+    expect(normalized.weights).toEqual({ ...DEFAULT_CONFIG.weights, completion: 0.7 })
+    expect(normalized.alpha).toBe(DEFAULT_CONFIG.alpha)
+    expect(normalized.maxSessionsPerDay).toBe(DEFAULT_CONFIG.maxSessionsPerDay)
+    expect(normalized.gracePeriodMin).toBe(DEFAULT_CONFIG.gracePeriodMin)
+    expect(normalized.theme).toBe(DEFAULT_CONFIG.theme)
   })
 })

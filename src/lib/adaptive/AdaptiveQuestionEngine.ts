@@ -15,6 +15,7 @@ import { MLInferenceEngine } from './MLInferenceEngine'
 import { BanditPolicy } from './BanditPolicy'
 import { SafetyGuard } from './SafetyGuard'
 import { ExplainabilityLogger } from './ExplainabilityLogger'
+import { resetAbilityCache, resetAbilityCacheAsync } from './abilityCacheReset'
 import type { Profile } from '../types'
 
 export interface SelectNextQuestionOptions {
@@ -31,6 +32,20 @@ export interface SelectNextQuestionOptions {
  * Contextual Multi-Armed Bandit (LinUCB), Safety Guardrails, and Explainability.
  */
 class AdaptiveQuestionEngineClass {
+  /**
+   * Hydrate all persisted adaptive state before a caller makes its first
+   * decision. The synchronous API remains intact for callers that already
+   * await app readiness; async callers can use the helpers below directly.
+   */
+  public async ready(): Promise<void> {
+    await Promise.all([PerformanceTracker.load(), BanditPolicy.ready()])
+  }
+
+  public async selectNextQuestionAsync(options: SelectNextQuestionOptions = {}): Promise<SelectionResult> {
+    await this.ready()
+    return this.selectNextQuestion(options)
+  }
+
   /**
    * Selects the most appropriate next question for the patient.
    */
@@ -49,6 +64,45 @@ class AdaptiveQuestionEngineClass {
     // If pool is still empty, fetch all questions as safety fallback
     if (pool.length === 0) {
       pool = QuestionRepository.getAllQuestions()
+    }
+
+    // A missing question catalog is a recoverable runtime state (for example,
+    // while content is being loaded). Return a safe placeholder instead of
+    // allowing the cold-start selector to dereference undefined.
+    if (pool.length === 0) {
+      const domain = options.targetDomain ?? 'memory'
+      const question: QuestionMetadata = {
+        questionId: 'empty-repository',
+        gameId: options.gameId ?? 'unavailable',
+        category: 'Unavailable',
+        cognitiveDomain: domain,
+        difficulty: 1,
+        language: 'en',
+        regionalRelevance: 0,
+        estimatedTimeSec: 0,
+        questionType: 'multiple_choice',
+        prompt: '',
+        correctAnswer: null,
+      }
+      const explanation: SelectionExplanation = {
+        timestamp: Date.now(),
+        questionId: question.questionId,
+        gameId: question.gameId,
+        domain: question.cognitiveDomain,
+        difficulty: question.difficulty,
+        score: 0,
+        reason: 'No questions are currently available; returned a safe placeholder.',
+        safetyOverrideApplied: false,
+        featuresSummary: {
+          overallAcc: 0,
+          recentAcc: 0,
+          domainScore: 50,
+          regionalRelevance: 0,
+          repetitionPenalty: 0,
+        },
+      }
+      ExplainabilityLogger.logDecision(explanation)
+      return { question, score: 0, explanation, isExploration: false }
     }
 
     const profile = PerformanceTracker.getProfile()
@@ -205,6 +259,11 @@ class AdaptiveQuestionEngineClass {
     return updatedProfile
   }
 
+  public async recordAnswerAsync(observation: PerformanceObservation): Promise<PatientPerformanceProfile> {
+    await this.ready()
+    return this.recordAnswer(observation)
+  }
+
   public getProfile(): PatientPerformanceProfile {
     return PerformanceTracker.getProfile()
   }
@@ -214,9 +273,20 @@ class AdaptiveQuestionEngineClass {
   }
 
   public resetAll(): void {
+    resetAbilityCache()
     PerformanceTracker.reset()
     BanditPolicy.reset()
     ExplainabilityLogger.clear()
+  }
+
+  /** Awaitable variant used by account/data reset flows before they return. */
+  public async resetAllAsync(): Promise<void> {
+    await resetAbilityCacheAsync()
+    await Promise.all([
+      PerformanceTracker.reset(),
+      BanditPolicy.reset(),
+      ExplainabilityLogger.clear(),
+    ])
   }
 }
 

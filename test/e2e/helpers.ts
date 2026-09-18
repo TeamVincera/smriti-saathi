@@ -5,9 +5,15 @@ export async function seedOnboardedState(page: Page, overrides = {}) {
     const style = document.createElement('style')
     style.id = 'e2e-disable-overlay'
     style.innerHTML = '[data-reticle-overlay], .reticle-tb-wrap, [data-reticle-min] { pointer-events: none !important; opacity: 0 !important; visibility: hidden !important; }'
-    document.documentElement.appendChild(style)
+    const mount = () => document.documentElement?.appendChild(style)
+    if (document.documentElement) mount()
+    else document.addEventListener('DOMContentLoaded', mount, { once: true })
   })
   await page.goto('/', { waitUntil: 'domcontentloaded' })
+  // The first navigation starts the lazy onboarding chunk. Waiting for its
+  // settled heading before replacing the profile avoids WebKit reporting the
+  // intentionally superseded module request as an import failure.
+  await page.getByRole('heading', { name: /Choose your language/i }).waitFor({ state: 'visible' })
   await page.evaluate(async (custom) => {
     const profile = {
       language: 'en',
@@ -82,4 +88,9 @@ export async function seedOnboardedState(page: Page, overrides = {}) {
     })
   }, overrides)
   await page.reload({ waitUntil: 'domcontentloaded' })
+  // `domcontentloaded` can precede the lazy Home chunk on WebKit. Wait for
+  // the settled shell before callers navigate again; otherwise a same-route
+  // navigation can cancel the module request and report a misleading import
+  // failure even though the asset is healthy.
+  await page.locator('.home-page').waitFor({ state: 'visible' })
 }

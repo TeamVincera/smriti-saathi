@@ -2,6 +2,9 @@ import { defineConfig, devices } from '@playwright/test'
 
 export default defineConfig({
   testDir: './test/e2e',
+  // These journeys have dedicated stable configs (production preview and
+  // service-worker/PWA-specific setup); keep them out of the general suite.
+  testIgnore: ['**/full-ui-audit.spec.ts', '**/pwa-offline.spec.ts'],
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 1,

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import {
   saveProfile, loadProfile, saveMed, getMeds, deleteMed,
   saveDailyReminder, loadDailyReminders, saveAppointment, loadAppointments, addSession, getSessions,
-  addMedLog, getMedLog, saveConfig, loadConfig, wipeAll
+  addMedLog, getMedLog, saveConfig, loadConfig, wipeAll, dbSet
 } from '../../src/lib/db'
 import type { Profile, Med, DailyReminder, AppointmentReminder, SessionRecord } from '../../src/lib/types'
 
@@ -105,6 +105,21 @@ describe('IndexedDB Integration Suite', () => {
     expect(logs[0].status).toBe('taken')
   })
 
+  it('deduplicates medication logs by local date and scheduled occurrence', async () => {
+    const firstOccurrence = new Date(2026, 8, 9, 8, 0).getTime()
+    const nextDayOccurrence = new Date(2026, 8, 10, 8, 0).getTime()
+    const log = { medId: 'm1', medName: 'Donepezil', scheduledFor: '08:00', status: 'taken' as const, method: 'tap' as const }
+
+    const firstKey = await addMedLog({ ...log, ts: firstOccurrence })
+    const duplicateKey = await addMedLog({ ...log, ts: firstOccurrence + 5 * 60 * 1000, method: 'slide' })
+    const nextDayKey = await addMedLog({ ...log, ts: nextDayOccurrence })
+
+    expect(firstKey).toBeDefined()
+    expect(duplicateKey).toBeUndefined()
+    expect(nextDayKey).toBeDefined()
+    expect(await getMedLog()).toHaveLength(2)
+  })
+
   it('wipes all stores cleanly', async () => {
     await saveProfile({
       language: 'en',
@@ -119,5 +134,19 @@ describe('IndexedDB Integration Suite', () => {
     await wipeAll()
     const p = await loadProfile()
     expect(p).toBeNull()
+  })
+
+  it('ignores corrupt local records instead of exposing them to state sorting', async () => {
+    await dbSet('meds', { id: 'bad-med', name: null, times: ['not-a-time'] }, 'bad-med')
+    await dbSet('meds', { id: 'good-med', name: 'Tablet', form: 'tablet', dosage: '1', times: ['08:00'], active: true }, 'good-med')
+    expect((await getMeds()).map((med) => med.id)).toEqual(['good-med'])
+
+    await dbSet('daily_reminders', { id: 'bad-reminder', title: 'Broken', time: '25:90' }, 'bad-reminder')
+    await dbSet('appointments', { id: 'bad-appointment', title: 'Broken', date: '2026-02-31', time: '09:00' }, 'bad-appointment')
+    expect((await loadDailyReminders()).every((reminder) => /^\d{2}:\d{2}$/.test(reminder.time))).toBe(true)
+    expect(await loadAppointments()).toEqual([])
+
+    await dbSet('kv', { patient: { name: 42 }, language: 'en' }, 'profile')
+    expect(await loadProfile()).toBeNull()
   })
 })

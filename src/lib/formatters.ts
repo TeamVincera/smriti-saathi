@@ -15,9 +15,15 @@ export function sanitizePersonName(val: string): string {
  * Returns null if the date is invalid or in the future.
  */
 export function calculateAgeFromDob(dobVal: string): number | null {
-  if (!dobVal) return null
-  const birthDate = new Date(dobVal)
-  if (isNaN(birthDate.getTime())) return null
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dobVal)) return null
+  const [year, month, day] = dobVal.split('-').map(Number)
+  // Parse date-only input as a local civil date. `new Date('YYYY-MM-DD')`
+  // parses at UTC midnight and can shift the birthday across a local day.
+  const birthDate = new Date(year, month - 1, day)
+  if (!Number.isFinite(birthDate.getTime())
+    || birthDate.getFullYear() !== year
+    || birthDate.getMonth() !== month - 1
+    || birthDate.getDate() !== day) return null
 
   const now = new Date()
   let ageYears = now.getFullYear() - birthDate.getFullYear()

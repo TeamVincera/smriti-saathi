@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genFamiliarObjectRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -21,12 +21,13 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
 
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [glowId, setGlowId] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
 
   const questionText = lang === 'hi' ? round.target.cueQuestionHi : round.target.cueQuestion
 
   useEffect(() => {
-    const glowTimer = setTimeout(() => {
+    const glowTimer = scheduleTimeout(() => {
       if (!pickedId && !glowId) {
         setGlowId(round.target.id)
         playSoftCue()
@@ -53,7 +54,7 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
       setGlowId(round.target.id)
     }
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPickedId(null)
       setGlowId(null)
       if (roundIdx + 1 >= TOTAL_ROUNDS) {
@@ -64,6 +65,8 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
       }
     }, 1600)
   }
+
+  const feedbackState = pickedId === null ? 'idle' : pickedId === round.target.id ? 'success' : 'guidance'
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
@@ -80,7 +83,7 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
       </div>
 
       {/* Options Grid */}
-      <div className="grid" style={{ gridTemplateColumns: round.options.length === 4 ? 'repeat(auto-fit, minmax(180px, 1fr))' : 'repeat(auto-fit, minmax(220px, 1fr))', gap: 'var(--s-md)', width: '100%' }}>
+      <div className="grid" style={{ gridTemplateColumns: round.options.length === 4 ? 'repeat(auto-fit, minmax(min(180px, 100%), 1fr))' : 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))', gap: 'var(--s-md)', width: '100%' }}>
         {round.options.map((item) => {
           const isCorrect = item.id === round.target.id
           const isSelected = pickedId === item.id
@@ -90,7 +93,9 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
           return (
             <button
               key={item.id}
-              className={`choice-card-big ${isSelected ? (isCorrect ? 'correct' : 'wrong') : ''} ${isGlow ? 'glow' : ''}`}
+              className={`choice-card-big ${isSelected ? (isCorrect ? 'answer-correct' : 'answer-guidance') : ''} ${isGlow ? 'glow' : ''}`}
+              aria-pressed={isSelected}
+              data-answer-state={isSelected ? (isCorrect ? 'correct' : 'guidance') : 'idle'}
               onClick={() => pick(item)}
               style={{
                 display: 'flex',
@@ -99,8 +104,8 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
                 textAlign: 'center',
                 padding: 'var(--s-lg)',
                 borderRadius: 'var(--r-lg)',
-                background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--error)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--primary)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                 boxShadow: 'var(--shadow-sm)',
                 minHeight: 210,
                 cursor: 'pointer',
@@ -108,7 +113,7 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
               }}
             >
               <span style={{ fontSize: 78, lineHeight: 1.1, marginBottom: 8 }}>{item.emoji}</span>
-              <strong style={{ fontSize: 'var(--fs-body)', color: isSelected && !isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{label}</strong>
+              <strong style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{label}</strong>
               <span className="caption" style={{ color: 'var(--ink-muted)', fontSize: 13, marginTop: 6, lineHeight: 1.3 }}>
                 {item.culturalNote}
               </span>
@@ -116,6 +121,8 @@ export function FamiliarObjects({ difficulty, logAction, complete }: GameProps) 
           )
         })}
       </div>
+
+      <AnswerFeedback state={feedbackState} />
 
       <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted-48)' }}>
         Tap the object that matches the question.

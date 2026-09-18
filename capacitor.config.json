@@ -6,6 +6,12 @@
     "contentInset": "never",
     "backgroundColor": "#FBF8F2"
   },
+  "plugins": {
+    "LocalNotifications": {
+      "sound": "alarm.wav",
+      "presentationOptions": ["badge", "sound", "banner", "list"]
+    }
+  },
   "server": {
     "iosScheme": "capacitor"
   }

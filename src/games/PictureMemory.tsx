@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genPictureMemoryRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
 import { playChime, playSoftCue } from '../lib/audio'
 import { useApp } from '../state'
-import { shuffle } from './shared'
+import { shuffle, useGameTimeout } from './shared'
 
 const TOTAL_ROUNDS = 4
 const DOMAIN = 'visual_memory'
@@ -25,6 +24,8 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
   const [pickedText, setPickedText] = useState<string | null>(null)
   const [glowText, setGlowText] = useState<string | null>(null)
   const unprompted = useRef(0)
+  const scheduleTimeout = useGameTimeout()
+  const viewIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Options list for active question
   const options = useMemo(() => {
@@ -50,17 +51,26 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(iv)
+          if (viewIntervalRef.current === iv) viewIntervalRef.current = null
           setPhase('recall')
           return 0
         }
         return prev - 1
       })
     }, 1000)
+    viewIntervalRef.current = iv
 
-    return () => clearInterval(iv)
+    return () => {
+      clearInterval(iv)
+      if (viewIntervalRef.current === iv) viewIntervalRef.current = null
+    }
   }, [roundIdx, lang, round.scene])
 
   function finishViewingEarly() {
+    if (viewIntervalRef.current !== null) {
+      clearInterval(viewIntervalRef.current)
+      viewIntervalRef.current = null
+    }
     setTimeLeft(0)
     setPhase('recall')
   }
@@ -81,7 +91,7 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
       playSoftCue()
     }
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPickedText(null)
       setGlowText(null)
       if (roundIdx + 1 >= TOTAL_ROUNDS) {
@@ -95,11 +105,16 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
 
   const sceneTitle = lang === 'hi' ? round.scene.titleHi : round.scene.title
   const questionText = lang === 'hi' ? round.activeQuestion.questionHi : round.activeQuestion.question
+  const viewingStatus = phase === 'viewing'
+    ? lang === 'hi'
+      ? `प्रश्न शुरू होने में ${timeLeft} सेकंड बाकी हैं।`
+      : `The question starts in ${timeLeft} seconds.`
+    : lang === 'hi'
+    ? 'याद करने का चरण तैयार है। अब सही उत्तर चुनें।'
+    : 'Recall is ready. Choose the answer you remember.'
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
-      <RoundHeader now={roundIdx + 1} total={TOTAL_ROUNDS} unit="round" label={sceneTitle} />
-
       {phase === 'viewing' ? (
         <div className="center-col enter-anim" style={{ width: '100%' }}>
           <div className="card card-dark row-between" style={{ width: '100%', padding: 'var(--s-md) var(--s-lg)', alignItems: 'center', marginBottom: 'var(--s-lg)' }}>
@@ -109,8 +124,13 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
                 {sceneTitle}
               </h2>
             </div>
-            <button className="btn btn-primary" onClick={finishViewingEarly} style={{ minHeight: 48, padding: '0 18px', borderRadius: 'var(--r-pill)' }}>
-              I have seen it (Ready)
+            <button
+              className="btn btn-primary"
+              onClick={finishViewingEarly}
+              aria-label={lang === 'hi' ? 'दृश्य देख लिया, सवाल शुरू करें' : 'I have seen it; start the question'}
+              style={{ minHeight: 48, padding: '0 18px', borderRadius: 'var(--r-pill)' }}
+            >
+              {lang === 'hi' ? 'देख लिया (तैयार)' : 'I have seen it (Ready)'}
             </button>
           </div>
 
@@ -162,10 +182,33 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
             </div>
           </div>
 
+          {/* Guided Visual Encoding Scaffolding (Lampit 2024 / Clare 2023) */}
+          <div
+            className="row"
+            style={{
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+              marginTop: 'var(--s-md)',
+              padding: '8px 16px',
+              borderRadius: 'var(--r-pill)',
+              background: 'rgba(217, 163, 67, 0.15)',
+              border: '1px solid rgba(201, 151, 0, 0.3)',
+              maxWidth: 540,
+            }}
+          >
+            <span style={{ fontSize: 16 }}>💡</span>
+            <span style={{ fontSize: 13, color: 'var(--ink)', fontWeight: 500 }}>
+              {lang === 'hi'
+                ? 'सुझाव: वस्तुओं और उनके स्थान को ध्यान से देखें — कोई जल्दबाजी नहीं है।'
+                : 'Tip: Notice each item and its position — take all the time you need.'}
+            </span>
+          </div>
+
           {/* Timer Bar */}
-          <div style={{ width: '100%', maxWidth: 400, marginTop: 'var(--s-lg)', textAlign: 'center' }}>
-            <span className="caption" style={{ color: 'var(--ink-muted-48)' }}>
-              Questions starting in {timeLeft} seconds…
+          <div style={{ width: '100%', maxWidth: 400, marginTop: 'var(--s-md)', textAlign: 'center' }}>
+            <span className="caption" role="status" aria-live="polite" aria-atomic="true" style={{ color: 'var(--ink-muted-48)' }}>
+              {viewingStatus}
             </span>
             <div style={{ width: '100%', height: 8, background: 'var(--parchment)', borderRadius: 4, overflow: 'hidden', marginTop: 6 }}>
               <div
@@ -186,6 +229,9 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
             <h2 className="display-md" style={{ color: '#fff', margin: '4px 0 0 0' }}>
               {questionText}
             </h2>
+            <p role="status" aria-live="polite" aria-atomic="true" style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+              {viewingStatus}
+            </p>
           </div>
 
           {/* Options Grid */}
@@ -198,8 +244,11 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
               return (
                 <button
                   key={i}
-                  className={`choice-card-big ${isSelected ? (opt.isCorrect ? 'correct' : 'wrong') : ''} ${isGlow ? 'glow' : ''}`}
+                  className={`choice-card-big ${isSelected && opt.isCorrect ? 'correct' : ''} ${isGlow ? 'glow' : ''}`}
                   onClick={() => pick(opt)}
+                  aria-label={label}
+                  aria-pressed={isSelected}
+                  aria-describedby={pickedText ? 'picture-feedback' : undefined}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -208,19 +257,27 @@ export function PictureMemory({ difficulty, logAction, complete }: GameProps) {
                     textAlign: 'center',
                     padding: 'var(--s-lg)',
                     borderRadius: 'var(--r-lg)',
-                    background: isSelected ? (opt.isCorrect ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                    border: isSelected ? (opt.isCorrect ? '3px solid var(--success)' : '3px solid var(--error)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                    background: isSelected ? (opt.isCorrect ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                    border: isSelected ? (opt.isCorrect ? '3px solid var(--success)' : '3px solid var(--primary)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                     boxShadow: 'var(--shadow-sm)',
                     minHeight: 140,
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  <strong style={{ fontSize: 'var(--fs-body)', color: isSelected && !opt.isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{label}</strong>
+                  <strong style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{label}</strong>
                 </button>
               )
             })}
           </div>
+
+          {pickedText && (
+            <p id="picture-feedback" role="status" aria-live="polite" aria-atomic="true" className="caption mt-md" style={{ textAlign: 'center', color: 'var(--ink-muted)' }}>
+              {options.find((opt) => opt.text === pickedText)?.isCorrect
+                ? (lang === 'hi' ? 'बहुत अच्छा! सही उत्तर चुना।' : 'Well done. That is the answer from the scene.')
+                : (lang === 'hi' ? 'यह उत्तर नहीं था। चमकते संकेत को देखकर फिर कोशिश करें।' : 'That was not the answer. Follow the highlighted hint and try again.')}
+            </p>
+          )}
 
           <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted-48)' }}>
             Tap the answer that matches what was in the scene.

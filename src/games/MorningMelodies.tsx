@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genMelodyRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -22,7 +22,9 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
 
   const [pickedId, setPickedId] = useState<string | null>(null)
   const [glowId, setGlowId] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const [playing, setPlaying] = useState(false)
+  const hasAutoPlayed = useRef(false)
   const unprompted = useRef(0)
 
   function play() {
@@ -37,18 +39,21 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
     stopAllAudio()
     setPlaying(false)
 
-    const autoTimer = setTimeout(() => {
-      play()
-    }, 450)
+    const autoTimer = roundIdx === 0 && !hasAutoPlayed.current
+      ? scheduleTimeout(() => {
+          hasAutoPlayed.current = true
+          play()
+        }, 450)
+      : null
 
-    const glowTimer = setTimeout(() => {
+    const glowTimer = scheduleTimeout(() => {
       if (!pickedId && !glowId) {
         setGlowId(round.target.id)
       }
     }, 4000)
 
     return () => {
-      clearTimeout(autoTimer)
+      if (autoTimer) clearTimeout(autoTimer)
       clearTimeout(glowTimer)
       stopAllAudio()
       setPlaying(false)
@@ -73,7 +78,7 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
       setGlowId(round.target.id)
     }
 
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPickedId(null)
       setGlowId(null)
       if (roundIdx + 1 >= TOTAL_ROUNDS) {
@@ -98,6 +103,21 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
       ? 'ꯅꯍꯥꯛꯅ ꯀꯔꯝꯕ ꯈꯣꯡꯖꯥꯎꯒꯤ ꯈꯣꯟꯊꯣꯛ ꯇꯥꯔꯤꯕꯒꯦ?'
       : 'Which traditional instrument made this sound?'
 
+  const audioStatus = playing
+    ? lang === 'hi'
+      ? 'धुन बज रही है। ध्यान से सुनिए।'
+      : 'The melody is playing. Listen closely.'
+    : lang === 'hi'
+    ? 'धुन तैयार है। फिर से सुनने के लिए बटन दबाएं।'
+    : 'The melody is ready. Press the button to listen again.'
+  const playLabel = playing
+    ? lang === 'hi'
+      ? 'धुन बज रही है'
+      : 'Melody is playing'
+    : lang === 'hi'
+    ? 'फिर से धुन सुनें'
+    : 'Listen to the melody again'
+
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 880, margin: '0 auto' }}>
       <RoundHeader now={roundIdx + 1} total={TOTAL_ROUNDS} unit="question" />
@@ -114,15 +134,21 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
         <h2 className="display-md" style={{ margin: '6px 0', color: '#fff' }}>
           {playing ? (lang === 'hi' ? '🎵 धुन बज रही है... ध्यान से सुनिए' : '🎵 Playing melody... Listen closely') : promptTitle}
         </h2>
+        <p role="status" aria-live="polite" aria-atomic="true" style={{ margin: '8px 0 0', color: 'rgba(255,255,255,0.82)', fontSize: 14 }}>
+          {audioStatus}
+        </p>
         <div className="row" style={{ justifyContent: 'center', gap: 'var(--s-md)', marginTop: 'var(--s-md)' }}>
           <button
             className={`btn ${playing ? 'btn-pearl' : 'btn-primary'} btn-big`}
             onClick={play}
             disabled={playing}
             style={{ minWidth: 220, fontSize: 'var(--fs-title)' }}
-            aria-label={lang === 'hi' ? 'फिर से सुनें' : 'Listen again'}
+            aria-label={playLabel}
+            aria-pressed={playing}
           >
-            {playing ? '🔊 Playing…' : '▶ Play sound again'}
+            {playing
+              ? (lang === 'hi' ? '🔊 धुन बज रही है…' : '🔊 Playing…')
+              : (lang === 'hi' ? '▶ धुन फिर से सुनें' : '▶ Play sound again')}
           </button>
         </div>
       </div>
@@ -138,8 +164,11 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
           return (
             <button
               key={inst.id}
-              className={`choice-card-big ${isSelected ? (isCorrect ? 'correct' : 'wrong') : ''} ${isGlow ? 'glow' : ''}`}
+              className={`choice-card-big ${isSelected && isCorrect ? 'correct' : ''} ${isGlow ? 'glow' : ''}`}
               onClick={() => pick(inst)}
+              aria-label={label}
+              aria-pressed={isSelected}
+              aria-describedby={pickedId ? 'melody-feedback' : undefined}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -147,8 +176,8 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
                 textAlign: 'center',
                 padding: 'var(--s-lg)',
                 borderRadius: 'var(--r-lg)',
-                background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--error-soft)') : 'var(--card)',
-                border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--error)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
+                background: isSelected ? (isCorrect ? 'var(--success-soft)' : 'var(--surface-muted)') : 'var(--card)',
+                border: isSelected ? (isCorrect ? '3px solid var(--success)' : '3px solid var(--primary)') : isGlow ? '3px solid var(--primary)' : '2px solid var(--border)',
                 boxShadow: 'var(--shadow-sm)',
                 minHeight: 200,
                 cursor: 'pointer',
@@ -156,7 +185,7 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
               }}
             >
               <span style={{ fontSize: 72, lineHeight: 1.1, marginBottom: 8 }}>{inst.emoji}</span>
-              <strong style={{ fontSize: 'var(--fs-body)', color: isSelected && !isCorrect ? 'var(--pastel-pink-text)' : 'var(--ink)' }}>{label}</strong>
+              <strong style={{ fontSize: 'var(--fs-body)', color: 'var(--ink)' }}>{label}</strong>
               <span className="chip mt-xs" style={{ background: 'var(--surface-muted)', color: 'var(--primary)', fontWeight: 600, fontSize: 12 }}>
                 📍 {inst.state}
               </span>
@@ -168,10 +197,17 @@ export function MorningMelodies({ difficulty, logAction, complete }: GameProps) 
         })}
       </div>
 
+      {pickedId && (
+        <p id="melody-feedback" role="status" aria-live="polite" aria-atomic="true" className="caption mt-md" style={{ textAlign: 'center', color: 'var(--ink-muted)' }}>
+          {pickedId === round.target.id
+            ? (lang === 'hi' ? 'बहुत अच्छा! सही वाद्य चुना।' : 'Well done. That is the instrument you heard.')
+            : (lang === 'hi' ? 'यह वाद्य नहीं था। चमकते संकेत को देखकर फिर कोशिश करें।' : 'That was not the instrument. Follow the highlighted hint and try again.')}
+        </p>
+      )}
+
       <p className="caption mt-lg" style={{ textAlign: 'center', color: 'var(--ink-muted)' }}>
         Tap the instrument that produced the melody. Take all the time you need.
       </p>
     </div>
   )
 }
-

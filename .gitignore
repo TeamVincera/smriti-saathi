@@ -26,6 +26,9 @@ coverage/
 playwright-report/
 blob-report/
 
+# Visual evidence from the final UI audit
+artifacts/ui-audit/
+
 # Local test scratch & keys
 test-keys*.js
 test-puter.js

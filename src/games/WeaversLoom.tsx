@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genLoomRound } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -18,10 +18,11 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
   const round = useMemo(() => genLoomRound(rng, level), [rng, level, roundIdx])
   const [picked, setPicked] = useState<string | null>(null)
   const [glow, setGlow] = useState<string | null>(null)
+  const scheduleTimeout = useGameTimeout()
   const unprompted = useRef(0)
 
   useEffect(() => {
-    const t = setTimeout(() => setGlow(round.missing), 4000)
+    const t = scheduleTimeout(() => setGlow(round.missing), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundIdx])
@@ -40,7 +41,7 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
       playSoftCue()
       setGlow(round.missing)
     }
-    setTimeout(() => {
+    scheduleTimeout(() => {
       setPicked(null)
       setGlow(null)
       if (roundIdx + 1 >= TOTAL) {
@@ -78,13 +79,16 @@ export function WeaversLoom({ logAction, complete }: GameProps) {
         {round.options.map((o) => (
           <button
             key={o}
-            className={`choice-btn ${picked === o ? (o === round.missing ? 'correct' : 'wrong') : ''} ${glow === o ? 'glow' : ''}`}
+            className={`choice-btn ${picked === o ? (o === round.missing ? 'answer-correct' : 'answer-guidance') : ''} ${glow === o ? 'glow' : ''}`}
+            aria-pressed={picked === o}
+            data-answer-state={picked === o ? (o === round.missing ? 'correct' : 'guidance') : 'idle'}
             onClick={() => pick(o)}
           >
             <span className="big">{o}</span>
           </button>
         ))}
       </div>
+      <AnswerFeedback state={picked === null ? 'idle' : picked === round.missing ? 'success' : 'guidance'} />
     </div>
   )
 }

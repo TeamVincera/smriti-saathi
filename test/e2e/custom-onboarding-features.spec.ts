@@ -57,8 +57,8 @@ test.describe('Enhanced Onboarding & Cultural AI Features Suite', () => {
     await expect(page.getByRole('heading', { name: 'Clinical context' })).toBeVisible()
     await page.getByTestId('step-next-btn').click()
 
-    // Step 3: Home & culture -> Custom festival & Custom hobby
-    await expect(page.getByRole('heading', { name: /Home & culture/i })).toBeVisible()
+    // Step 3: Home & regional culture -> Custom festival & Custom hobby
+    await expect(page.getByRole('heading', { name: /Home & regional culture/i })).toBeVisible()
     const customFestInput = page.getByPlaceholder(/Any other festival/i)
     await customFestInput.fill('Ali-Aye-Ligang')
     await page.getByRole('button', { name: '+ Add' }).first().click()

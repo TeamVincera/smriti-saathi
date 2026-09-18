@@ -18,45 +18,20 @@ export function Layout({ children, hideNav = false }: { children: ReactNode; hid
     <div className="app">
       {!hideNav && (
         <header className="nav-global">
-          <div className="nav-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div className="nav-brand" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div className="nav-inner">
+            <div className="nav-brand">
               {profile?.patient.photo ? (
                 <img
                   src={profile.patient.photo}
                   alt={profile.patient.name}
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    objectFit: 'cover',
-                    border: '1.5px solid var(--border)',
-                  }}
+                  className="nav-avatar"
                 />
               ) : (
-                <div
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: '50%',
-                    background: 'var(--surface-muted)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 20,
-                  }}
-                >
+                <div className="nav-avatar nav-avatar-fallback" aria-hidden="true">
                   {profile?.patient.avatar || '👵'}
                 </div>
               )}
-              <span
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontWeight: 700,
-                  fontSize: 20,
-                  color: 'var(--ink)',
-                  letterSpacing: -0.2,
-                }}
-              >
+              <span className="nav-brand-name">
                 {translate(lang, 'brand')}
               </span>
             </div>
@@ -64,18 +39,8 @@ export function Layout({ children, hideNav = false }: { children: ReactNode; hid
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent('open-chatbot'))}
-              aria-label="Open Voice Assistant"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: 'var(--surface-muted)',
-                border: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
+              aria-label={translate(lang, 'aria_voice_assistant')}
+              className="nav-audio-btn"
             >
               <Icon name="mic" size={20} color="var(--primary)" />
             </button>
@@ -83,10 +48,10 @@ export function Layout({ children, hideNav = false }: { children: ReactNode; hid
         </header>
       )}
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>{children}</main>
+      <main className="app-main">{children}</main>
 
       {!hideNav && (
-        <nav className="tabbar" aria-label="Primary">
+        <nav className="tabbar" aria-label={translate(lang, 'aria_primary_navigation')}>
           <div className="tabbar-inner">
             {tabs.map((tab) => {
               const isActive = path === tab.to

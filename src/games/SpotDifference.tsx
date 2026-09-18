@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import { genSpotBoard } from '../lib/content'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -22,6 +22,7 @@ export function SpotDifference({ logAction, complete }: GameProps) {
   const board = useMemo(() => genSpotBoard(rng, level), [rng, level, boardIdx])
   const [solved, setSolved] = useState(false)
   const [wrongIdx, setWrongIdx] = useState<number | null>(null)
+  const scheduleTimeout = useGameTimeout()
 
   function tap(i: number) {
     if (solved) return
@@ -30,7 +31,7 @@ export function SpotDifference({ logAction, complete }: GameProps) {
       void playChime()
       logAction('unprompted')
       recordAnswer(DOMAIN, level, strays.current <= 1)
-      setTimeout(() => {
+      scheduleTimeout(() => {
         if (boardIdx + 1 < TOTAL_BOARDS) {
           setLevel(nextLevel(DOMAIN))
           setBoardIdx((b) => b + 1)
@@ -45,12 +46,12 @@ export function SpotDifference({ logAction, complete }: GameProps) {
       logAction('cued')
       playSoftCue()
       setWrongIdx(i)
-      setTimeout(() => setWrongIdx(null), 550)
+      scheduleTimeout(() => setWrongIdx(null), 550)
     }
   }
 
   const cellStyle = (isChange: boolean) =>
-    solved && isChange ? { animation: 'pulseGentle 1.2s infinite', borderColor: 'var(--primary-focus)' } : undefined
+    solved && isChange ? { borderColor: 'var(--primary-focus)' } : undefined
 
   return (
     <div className="center-col" style={{ width: '100%', maxWidth: 720, margin: '0 auto' }}>
@@ -66,10 +67,13 @@ export function SpotDifference({ logAction, complete }: GameProps) {
               {cells.map((v, i) => (
                 <button
                   key={i}
-                  className={`scene-cell ${bi === 1 && solved && i === board.changedIdx ? 'found' : ''} ${bi === 1 && wrongIdx === i ? 'wrong' : ''}`}
+                  className={`scene-cell ${bi === 1 && solved && i === board.changedIdx ? 'answer-correct' : ''} ${bi === 1 && wrongIdx === i ? 'answer-guidance' : ''}`}
                   style={bi === 1 ? cellStyle(i === board.changedIdx) : undefined}
                   onClick={() => bi === 1 && tap(i)}
-                  aria-label={`${bi === 0 ? 'first' : 'second'} tile ${i + 1}`}
+                  disabled={bi === 0 || solved}
+                  aria-pressed={bi === 1 && solved && i === board.changedIdx}
+                  data-answer-state={bi === 1 && solved && i === board.changedIdx ? 'correct' : bi === 1 && wrongIdx === i ? 'guidance' : 'idle'}
+                  aria-label={`${bi === 0 ? 'first' : 'second'} picture tile ${i + 1}${bi === 1 && solved && i === board.changedIdx ? ', changed item' : ''}`}
                 >
                   {v}
                 </button>
@@ -78,6 +82,7 @@ export function SpotDifference({ logAction, complete }: GameProps) {
           </div>
         ))}
       </div>
+      <AnswerFeedback state={solved ? 'success' : wrongIdx !== null ? 'guidance' : 'idle'} />
       <p className="caption">{lang === 'hi' ? 'केवल दूसरी तस्वीर पर टैप करें।' : 'Tap the changed item in the second picture.'}</p>
     </div>
   )

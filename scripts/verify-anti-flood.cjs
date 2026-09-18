@@ -81,7 +81,7 @@ const seed = async (page) => {
   })
   const page = await ctx.newPage()
   page.on('response', async (r) => {
-    if (r.url().includes('api.groq.com') && r.url().includes('transcriptions')) {
+    if (r.url().includes('/api/ai/transcribe')) {
       transcriptions += 1
       if (r.ok()) {
         try {

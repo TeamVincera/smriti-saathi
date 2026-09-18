@@ -1,6 +1,8 @@
 import { dbGet, dbSet } from './db'
 import { PerformanceTracker } from './adaptive/PerformanceTracker'
 import { AdaptiveQuestionEngine } from './adaptive/AdaptiveQuestionEngine'
+import { BanditPolicy } from './adaptive/BanditPolicy'
+import { registerAbilityCacheReset } from './adaptive/abilityCacheReset'
 import type { CognitiveDomain, DifficultyLevel } from './adaptive/types'
 
 export const MAX_LEVEL = 4
@@ -38,7 +40,7 @@ export function pCorrect(theta: number, level: number): number {
 }
 
 export async function ensureAbilities(): Promise<void> {
-  await PerformanceTracker.load()
+  await Promise.all([PerformanceTracker.load(), BanditPolicy.ready()])
   if (cache) return
   try {
     cache = (await dbGet<AbilityMap>('kv', 'abilities')) ?? {}
@@ -51,9 +53,17 @@ function persistSoon() {
   if (!cache) return
   if (saveTimer) clearTimeout(saveTimer)
   saveTimer = setTimeout(() => {
+    saveTimer = null
     void dbSet('kv', cache ?? {}, 'abilities').catch(() => {})
   }, 400)
 }
+
+registerAbilityCacheReset(() => {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  cache = null
+  return dbSet('kv', {}, 'abilities').then(() => undefined).catch(() => {})
+})
 
 export function getAbility(domain: string): AbilityRec {
   return cache?.[domain] ?? defaultAbility()

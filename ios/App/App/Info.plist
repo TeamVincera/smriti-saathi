@@ -72,5 +72,14 @@
 	<string>Smriti Sathi uses the camera to capture photos of medicines and family members for memory exercises.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Smriti Sathi accesses your photo library to select pictures of family members for memory exercises.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Smriti Sathi connects to the AI service on your local network for online voice and chat features during development.</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
 </dict>
 </plist>

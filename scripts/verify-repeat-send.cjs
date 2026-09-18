@@ -102,7 +102,7 @@ async function oneSession(page) {
     hasTouch: true,
   })
   const page = await ctx.newPage()
-  await page.route('**/api.groq.com/**/transcriptions', (route) =>
+  await page.route('**/api/ai/transcribe', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ text: 'Test' }) })
   )
   await seed(page)

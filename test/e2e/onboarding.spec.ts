@@ -56,8 +56,8 @@ test.describe('Onboarding & Baseline Cognitive Flow', () => {
     await page.getByRole('button', { name: /Mild/i }).first().click()
     await page.getByTestId('step-next-btn').click()
 
-    // Step 3: Home & culture
-    await expect(page.getByRole('heading', { name: /Home & culture/i })).toBeVisible()
+    // Step 3: Home & regional culture
+    await expect(page.getByRole('heading', { name: /Home & regional culture/i })).toBeVisible()
     const bihuBtn = page.getByRole('button', { name: /Bihu/i })
     if (await bihuBtn.isVisible()) {
       await bihuBtn.click()

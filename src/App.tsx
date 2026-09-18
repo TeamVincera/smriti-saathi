@@ -1,17 +1,22 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useApp } from './state'
 import { useHashRoute, navigate } from './router'
 import { Layout } from './components/Layout'
 import { ReminderOverlay } from './components/ReminderOverlay'
-import { startReminderEngine } from './lib/reminders'
-import { Onboarding } from './screens/Onboarding'
-import { Home } from './screens/Home'
-import { GameScreen } from './games/GameHost'
-import { Reminders } from './screens/Reminders'
-import { Meds } from './screens/Meds'
-import { CaregiverHub } from './screens/CaregiverHub'
-
+import { ScreenLoadingFallback } from './components/ScreenLoadingFallback'
+import { RouteErrorBoundary } from './components/RouteErrorBoundary'
 import { AIChatbot } from './components/AIChatbot'
+import { startReminderEngine } from './lib/reminders'
+import { initAlarmService, syncAllAlarmsToNative } from './lib/alarmService'
+
+// Keep the app shell (navigation, reminder service, and state) in the initial
+// bundle while loading each route's heavier screen only when it is needed.
+const Onboarding = lazy(() => import('./screens/Onboarding').then(({ Onboarding }) => ({ default: Onboarding })))
+const Home = lazy(() => import('./screens/Home').then(({ Home }) => ({ default: Home })))
+const GameScreen = lazy(() => import('./games/GameHost').then(({ GameScreen }) => ({ default: GameScreen })))
+const Reminders = lazy(() => import('./screens/Reminders').then(({ Reminders }) => ({ default: Reminders })))
+const Meds = lazy(() => import('./screens/Meds').then(({ Meds }) => ({ default: Meds })))
+const CaregiverHub = lazy(() => import('./screens/CaregiverHub').then(({ CaregiverHub }) => ({ default: CaregiverHub })))
 
 export default function App() {
   const { ready, profile, lang } = useApp()
@@ -20,8 +25,25 @@ export default function App() {
   useEffect(() => {
     if (ready && profile?.onboarded) {
       startReminderEngine(() => lang)
+      void initAlarmService(lang)
     }
     return () => {}
+  }, [ready, profile?.onboarded, lang])
+
+  useEffect(() => {
+    if (!ready || !profile?.onboarded) return
+
+    // Rebuild the OS-owned schedule whenever the app returns to the foreground.
+    // This repairs reminders after a permission or clock/time-zone change.
+    const resyncWhenVisible = () => {
+      if (document.visibilityState === 'visible') void syncAllAlarmsToNative(lang)
+    }
+    document.addEventListener('visibilitychange', resyncWhenVisible)
+    window.addEventListener('focus', resyncWhenVisible)
+    return () => {
+      document.removeEventListener('visibilitychange', resyncWhenVisible)
+      window.removeEventListener('focus', resyncWhenVisible)
+    }
   }, [ready, profile?.onboarded, lang])
 
   useEffect(() => {
@@ -39,7 +61,15 @@ export default function App() {
     )
   }
 
-  if (!profile?.onboarded) return <Onboarding />
+  if (!profile?.onboarded) {
+    return (
+      <RouteErrorBoundary routeKey="/onboarding" lang={lang}>
+        <Suspense fallback={<ScreenLoadingFallback lang={lang} />}>
+          <Onboarding />
+        </Suspense>
+      </RouteErrorBoundary>
+    )
+  }
 
   const isGame = path.startsWith('/game/')
   let screen = <Home />
@@ -50,8 +80,12 @@ export default function App() {
 
   return (
     <Layout hideNav={isGame}>
-      {screen}
-      {!isGame && <AIChatbot />}
+      <RouteErrorBoundary routeKey={path} lang={lang}>
+        <Suspense fallback={<ScreenLoadingFallback lang={lang} />}>
+          {screen}
+          {!isGame && <AIChatbot />}
+        </Suspense>
+      </RouteErrorBoundary>
       <ReminderOverlay />
     </Layout>
   )

@@ -1,2 +1,6 @@
-export { VoiceService } from './VoiceService'
-export { GroqSpeechToText, whisperLanguage, sanitizeTranscript } from './SpeechToText'
+export { VoiceService, neutralizeGenderWords } from './VoiceService'
+export { GroqSpeechToText, whisperLanguage, sanitizeTranscript, getSpeechRecognitionLanguage } from './SpeechToText'
+export { HUMAN_AUDIO_CATALOG, matchCatalogCue } from './humanAudioCatalog'
+export { getCachedVoice, setCachedVoice, voiceCacheProfile } from './voiceCache'
+export { AzureSpeechService } from './AzureSpeechService'
+export { SarvamSpeechService } from './SarvamSpeechService'

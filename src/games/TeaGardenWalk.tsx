@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { GameProps } from './GameHost'
-import { RoundHeader } from './shared'
+import { AnswerFeedback, RoundHeader, useGameTimeout } from './shared'
 import { sessionRng } from '../lib/rng'
 import type { Rng } from '../lib/rng'
 import { nextLevel, recordAnswer } from '../lib/adaptive'
@@ -42,9 +42,11 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   const leavesTotal = Math.max(1, Math.floor((path.length - 1) / 2))
   const leafCells = useMemo(() => new Set(path.slice(1).map((c) => `${c.r}-${c.c}`).slice(0, leavesTotal)), [path, leavesTotal])
   const [leavesCollected, setLeavesCollected] = useState(0)
+  const [feedbackState, setFeedbackState] = useState<'idle' | 'success' | 'guidance'>('idle')
   const unpromptedSteps = useRef(0)
   const totalSteps = useRef(0)
   const doneRef = useRef(false)
+  const scheduleTimeout = useGameTimeout()
 
   const nextCell = path[Math.min(step + 1, path.length - 1)]
 
@@ -53,7 +55,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   }, [path])
 
   useEffect(() => {
-    const t = setTimeout(() => setGlowCell(nextCell), 4000)
+    const t = scheduleTimeout(() => setGlowCell(nextCell), 4000)
     return () => clearTimeout(t)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step])
@@ -61,6 +63,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
   function tap(r: number, c: number) {
     if (doneRef.current) return
     if (r === nextCell.r && c === nextCell.c) {
+      setFeedbackState('success')
       unpromptedSteps.current++
       const isLeaf = leafCells.has(`${r}-${c}`)
       if (isLeaf) {
@@ -74,16 +77,17 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
       setStep(nextStep)
       setGlowCell(null)
       if (nextStep >= path.length - 1) {
+        doneRef.current = true
         recordAnswer(DOMAIN, level, true)
-        setTimeout(() => {
+        scheduleTimeout(() => {
           if (walkIdx + 1 < TOTAL_WALKS) {
             setLevel(nextLevel(DOMAIN))
             setWalkIdx((w) => w + 1)
             setStep(0)
             setLeavesCollected(0)
+            setFeedbackState('idle')
             doneRef.current = false
           } else {
-            doneRef.current = true
             const total = Math.max(totalSteps.current, 1)
             complete({
               itemsTotal: total,
@@ -96,6 +100,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
     } else {
       playSoftCue()
       logAction('cued')
+      setFeedbackState('guidance')
     }
   }
 
@@ -129,16 +134,17 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
           return (
             <button
               key={key}
-              className={`scene-cell ${worker ? 'found' : ''}`}
-              style={{
-                width: '100%',
-                height: '100%',
-                minHeight: 48,
-                fontSize: 'clamp(18px, 5vw, 28px)',
-                ...(glow ? { animation: 'pulseGentle 1.2s infinite', borderColor: 'var(--primary-focus)' } : {}),
-              }}
-              onClick={() => tap(r, c)}
-              aria-label={`tile ${r + 1},${c + 1}`}
+            className={`scene-cell ${worker ? 'found' : ''} ${glow ? 'hint' : ''}`}
+            aria-pressed={worker}
+            data-answer-state={worker ? 'current' : glow ? 'hint' : onPath ? 'path' : 'idle'}
+            style={{
+              width: '100%',
+              height: '100%',
+              minHeight: 48,
+              fontSize: 'clamp(18px, 5vw, 28px)',
+            }}
+            onClick={() => tap(r, c)}
+            aria-label={`tile ${r + 1},${c + 1}${worker ? ', gardener here' : isLeaf ? ', tea leaf' : onPath ? ', path' : ', garden scene'}`}
             >
               {worker ? '👩‍🌾' : isLeaf ? '🍃' : ''}
               {!worker && !isLeaf ? (onPath ? '🌱' : ['🌳', '🌿', '🪨'][i % 3]) : ''}
@@ -146,6 +152,7 @@ export function TeaGardenWalk({ logAction, complete }: GameProps) {
           )
         })}
       </div>
+      <AnswerFeedback state={feedbackState} />
       <p className="caption" style={{ marginTop: 12, color: 'var(--ink-muted)' }}>
         🍃 {lang === 'hi' ? 'सारी चाय की पत्तियां इकट्ठा करें' : 'Collect every tea leaf'}
       </p>

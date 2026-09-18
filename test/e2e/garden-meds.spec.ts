@@ -8,11 +8,11 @@ test.describe('Reminders & Medication Management E2E Suite', () => {
 
   test('displays daily reminders and appointments schedule', async ({ page }) => {
     await page.goto('/#/reminders')
-    await expect(page.getByText(/DAILY REMINDERS & SCHEDULE/i)).toBeVisible()
+    await expect(page.getByRole('heading', { name: /Reminders/i })).toBeVisible()
 
     // Tabs for Daily Reminders and Appointments
-    await expect(page.getByRole('button', { name: /Daily Reminders/i })).toBeVisible()
-    await expect(page.getByRole('button', { name: /Appointments/i })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Reminders/i })).toBeVisible()
+    await expect(page.getByRole('tab', { name: /Appointments/i })).toBeVisible()
   })
 
   test('displays medicine list and allows confirming doses', async ({ page }) => {
