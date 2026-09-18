@@ -67,6 +67,31 @@ Over **8.8 million older adults in India** live with dementia or Mild Cognitive 
 
 ---
 
+## 👤 Person-Centered Care: How Smriti Sathi is Tailored to the Individual
+
+Dementia and Mild Cognitive Impairment (MCI) affect every individual differently. Smriti Sathi rejects rigid, generic testing in favor of **deep, person-centered personalization** that honors each elder’s unique life story, routine, and capabilities:
+
+### 1. 🖼️ Personal Family & Reminiscence Anchors (*Faces of Home*)
+- **Familiar Face Recognition:** Families can personalize activities by configuring real photos of loved ones, children, grandchildren, and caregivers. The app generates customized recognition exercises so elders can preserve vital emotional connections.
+- **Biographical Context in AI Companion:** The conversational AI doesn't just chat generically—it references the user’s preferred name, family members, hometown, and childhood memories during reminiscence sessions to evoke comfort and warmth.
+
+### 2. 🗣️ Native Linguistic & Regional Grounding
+- **Mother Tongue First:** Older adults with cognitive decline often revert to their native language. Smriti Sathi offers native support across 6 Indian languages (Hindi, Assamese, Bengali, Bodo, Manipuri, and Indian English).
+- **Culturally Resonant Metaphors:** Prompts, proverbs, and audio chimes draw from the elder's regional heritage (such as tea gardens, Bihu festivities, Cheraw bamboo steps, or village market routines), eliminating the cognitive disorientation caused by Westernized apps.
+
+### 3. 🧠 Dynamic AI Capability Calibration (LinUCB Bandit)
+- **Zero-Frustration Adaptive Engine:** The on-device Contextual Bandit monitors **25 individual behavioral features** (including reaction latency, hint requests, time-of-day fatigue, and historical domain comfort).
+- **Empathy-First Difficulty Scaling:** On high-clarity mornings, the app gently challenges the user; on days with fatigue or "sundowning" confusion, difficulty seamlessly scales down to prevent agitation and protect personal dignity.
+
+### 4. 📅 Synchronized to the Person’s Life Rhythm
+- **Custom Daily Cadence:** Instead of arbitrary notification timers, reminders align with the elder's actual lifestyle (e.g., wake-up chai, post-breakfast rest, evening garden walk).
+- **Context-Aware Medication Prompts:** Reminders are contextualized around daily anchors (e.g., *"Did you take your blood pressure tablet after breakfast?"*) with soothing audio chimes and voice alerts from family members.
+
+### 5. 📊 Individualized Stability Tracking for Caregivers
+- **Patient-Specific Baselines:** The Caregiver Hub compares today's engagement against the individual's *own* rolling 14-day history, highlighting subtle anomalies in routine or attention early without clinical alarmism.
+
+---
+
 ## 🏗️ System Architecture
 
 ```text
