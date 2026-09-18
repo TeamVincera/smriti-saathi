@@ -6,6 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Web%20%7C%20PWA%20%7C%20Android%20%7C%20iOS-purple?style=for-the-badge)](#)
 [![Offline First](https://img.shields.io/badge/Architecture-Offline--First-teal?style=for-the-badge)](#)
+[![Watch Video Demo](https://img.shields.io/badge/YouTube-Video%20Demo-red?style=for-the-badge&logo=youtube)](https://youtube.com/shorts/e9hAWacKDic)
 
 ---
 
@@ -25,6 +26,18 @@ Over **8.8 million older adults in India** live with dementia or Mild Cognitive 
 
 ### The Solution: Smriti Sathi
 **Smriti Sathi (स्मृति साथी)** is an offline-first, culturally familiar assistive mobile and progressive web application (PWA) designed to foster cognitive wellness, preserve memory through reminiscence therapy, reinforce daily medication routines, and provide peace of mind to caregivers and frontline healthcare workers (ASHAs).
+
+---
+
+## 🎥 Video Demonstration
+
+<div align="center">
+  <a href="https://youtube.com/shorts/e9hAWacKDic" target="_blank">
+    <img src="https://img.youtube.com/vi/e9hAWacKDic/hqdefault.jpg" alt="Smriti Saathi Video Demo" width="360" style="border-radius: 12px;" />
+  </a>
+  <br />
+  <p><strong>▶️ <a href="https://youtube.com/shorts/e9hAWacKDic">Watch the Smriti Saathi Walkthrough on YouTube</a></strong></p>
+</div>
 
 ---
 
