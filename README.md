@@ -256,13 +256,14 @@ smriti-saathi/
 
 ## 👥 Team Vincera — Contributors (SIH 2026)
 
-| Member | Role | GitHub |
+| Member | Role / Focus Area | GitHub Profile |
 |---|---|---|
 | **Naitik Singhal** | Team Lead / Full Stack Architect | [@naitiksinghalns-netizen](https://github.com/naitiksinghalns-netizen) |
-| **Team Member 2** | AI / ML & Adaptive Systems | [@username2](https://github.com/) |
-| **Team Member 3** | Mobile & Native Shell (Capacitor) | [@username3](https://github.com/) |
-| **Team Member 4** | UI/UX & Regional Language Specialist | [@username4](https://github.com/) |
-| **Team Member 5** | QA, Accessibility & Voice Engineering | [@username5](https://github.com/) |
+| **Palak Mittal** | AI / ML & Adaptive Systems | [@pmittal8145-lab](https://github.com/pmittal8145-lab) |
+| **Disha** | UI/UX & Regional Language Design | [@disha0812](https://github.com/disha0812) |
+| **Aarnavi** | Healthcare Research & Reminiscence Content | [@aarnavi367-jpg](https://github.com/aarnavi367-jpg) |
+| **Tanvi** | Mobile Engineering & Capacitor Integration | [@Tanvi-1203](https://github.com/Tanvi-1203) |
+| **Akshay** | QA, Voice Systems & Accessibility | [@y-a-s-h-7](https://github.com/y-a-s-h-7) |
 
 ---
 
